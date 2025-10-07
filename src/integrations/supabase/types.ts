@@ -41,39 +41,6 @@ export type Database = {
         }
         Relationships: []
       }
-      notification_settings: {
-        Row: {
-          alert_email: string | null
-          high_score_threshold: number | null
-          id: string
-          instant_alerts_enabled: boolean | null
-          score_threshold: number | null
-          slack_webhook_url: string | null
-          updated_at: string | null
-          weekly_summary_enabled: boolean | null
-        }
-        Insert: {
-          alert_email?: string | null
-          high_score_threshold?: number | null
-          id?: string
-          instant_alerts_enabled?: boolean | null
-          score_threshold?: number | null
-          slack_webhook_url?: string | null
-          updated_at?: string | null
-          weekly_summary_enabled?: boolean | null
-        }
-        Update: {
-          alert_email?: string | null
-          high_score_threshold?: number | null
-          id?: string
-          instant_alerts_enabled?: boolean | null
-          score_threshold?: number | null
-          slack_webhook_url?: string | null
-          updated_at?: string | null
-          weekly_summary_enabled?: boolean | null
-        }
-        Relationships: []
-      }
       tenders: {
         Row: {
           body: string | null
@@ -85,7 +52,6 @@ export type Database = {
           doffin_url: string | null
           id: string
           matched_keywords: Json | null
-          notified: boolean | null
           published_date: string | null
           score: number | null
           search_vector: unknown | null
@@ -101,7 +67,6 @@ export type Database = {
           doffin_url?: string | null
           id?: string
           matched_keywords?: Json | null
-          notified?: boolean | null
           published_date?: string | null
           score?: number | null
           search_vector?: unknown | null
@@ -117,7 +82,6 @@ export type Database = {
           doffin_url?: string | null
           id?: string
           matched_keywords?: Json | null
-          notified?: boolean | null
           published_date?: string | null
           score?: number | null
           search_vector?: unknown | null
