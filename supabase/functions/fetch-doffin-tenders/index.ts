@@ -36,91 +36,72 @@ serve(async (req) => {
 
     console.log(`Fetched ${keywords?.length || 0} keywords`);
 
-    // Try different possible endpoints
-    const possibleEndpoints = [
-      'https://api.doffin.no/public/v2/notices/search',
-      'https://api.doffin.no/public/v2/notices',
-      'https://dof-notices-prod-api.developer.azure-api.net/public/v2/search',
-      'https://dof-notices-prod-api.developer.azure-api.net/public/search'
-    ];
+    // Fetch tenders from Doffin Public API v2
+    const baseUrl = 'https://api.doffin.no/public/v2/search';
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Ocp-Apim-Subscription-Key': doffinApiKey || '',
     };
     
-    if (doffinApiKey) {
-      headers['Ocp-Apim-Subscription-Key'] = doffinApiKey;
-    } else {
+    if (!doffinApiKey) {
       throw new Error('DOFFIN_API_KEY is not configured');
     }
 
-    // Search parameters - get recent notices
-    const searchParams = new URLSearchParams({
-      limit: '100',
-      sortOrder: 'desc',
-      sortBy: 'publishedDate'
+    // Build search parameters
+    const params = new URLSearchParams({
+      status: 'ACTIVE',
+      numHitsPerPage: '100',
+      page: '1',
+      sortBy: 'PUBLICATION_DATE_DESC'
+    });
+    
+    // Add CPV code filters
+    TARGET_CPV_CODES.forEach(code => {
+      params.append('cpvCode', code);
     });
 
-    let doffinData: any = null;
-    let successUrl = '';
+    const searchUrl = `${baseUrl}?${params.toString()}`;
+    console.log('Fetching tenders from Doffin API v2...');
+    console.log(`URL: ${searchUrl}`);
     
-    // Try each endpoint until one works
-    for (const endpoint of possibleEndpoints) {
-      try {
-        console.log(`Trying endpoint: ${endpoint}`);
-        const response = await fetch(`${endpoint}?${searchParams}`, { headers });
-        console.log(`Response status: ${response.status}`);
-        
-        if (response.ok) {
-          doffinData = await response.json();
-          successUrl = endpoint;
-          console.log(`Success! Data received from: ${endpoint}`);
-          break;
-        }
-      } catch (err) {
-        console.log(`Failed: ${endpoint} - ${err}`);
-      }
+    const doffinResponse = await fetch(searchUrl, { headers });
+    
+    console.log(`Response status: ${doffinResponse.status}`);
+    
+    if (!doffinResponse.ok) {
+      const errorText = await doffinResponse.text();
+      console.error(`API error: ${errorText}`);
+      throw new Error(`Doffin API error: ${doffinResponse.status}`);
     }
+
+    const doffinData = await doffinResponse.json();
+    console.log(`Response structure:`, Object.keys(doffinData));
     
-    if (!doffinData) {
-      throw new Error('Failed to fetch from all known Doffin API endpoints');
-    }
-    
-    console.log(`Response data:`, JSON.stringify(doffinData).substring(0, 500));
-    
-    const notices = Array.isArray(doffinData) ? doffinData : (doffinData.notices || doffinData.results || []);
+    const notices = doffinData.notices || doffinData.results || doffinData.hits || [];
     console.log(`Fetched ${notices.length} tenders from Doffin`);
 
     let processedCount = 0;
     let savedCount = 0;
 
     for (const tender of notices) {
-      // Hard filter on CPV codes
-      const tenderCpvCodes = tender.cpv_codes || [];
-      const hasMatchingCpv = tenderCpvCodes.some((code: string) => 
-        TARGET_CPV_CODES.some(targetCode => code.startsWith(targetCode))
-      );
-
-      if (!hasMatchingCpv) {
-        continue;
-      }
-
       processedCount++;
 
       // Check if tender already exists
+      const doffinId = tender.doffinReferenceNumber || tender.noticeId || tender.id;
       const { data: existingTender } = await supabase
         .from('tenders')
         .select('id')
-        .eq('doffin_id', tender.notice_id)
+        .eq('doffin_id', doffinId)
         .maybeSingle();
 
       if (existingTender) {
-        continue; // Skip already processed tenders
+        continue;
       }
 
       // Calculate score based on keywords
-      const title = tender.title || '';
-      const body = tender.description || '';
+      const title = tender.title || tender.noticeTitle || '';
+      const body = tender.description || tender.shortDescription || '';
       const searchText = `${title} ${body}`.toLowerCase();
       
       let score = 0;
@@ -140,19 +121,20 @@ serve(async (req) => {
 
       // Only save tenders with score >= 3
       if (score >= 3) {
+        const cpvCodes = tender.cpvCodes || tender.cpv || [];
         const { error: insertError } = await supabase
           .from('tenders')
           .insert({
-            doffin_id: tender.notice_id,
-            title: tender.title,
-            body: tender.description,
-            client: tender.authority_name,
-            deadline: tender.deadline,
-            cpv_codes: tenderCpvCodes,
+            doffin_id: doffinId,
+            title: title,
+            body: body,
+            client: tender.authorityName || tender.buyer?.name || tender.organization,
+            deadline: tender.deadline || tender.tenderDeadline,
+            cpv_codes: cpvCodes,
             score,
             matched_keywords: matchedKeywords,
-            published_date: tender.published_date,
-            doffin_url: `https://doffin.no/Notice/Details/${tender.notice_id}`
+            published_date: tender.publicationDate || tender.publishedDate,
+            doffin_url: `https://doffin.no/Notice/Details/${doffinId}`
           });
 
         if (insertError) {
