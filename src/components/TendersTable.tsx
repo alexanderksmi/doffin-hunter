@@ -16,6 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ExternalLink } from "lucide-react";
 
 interface MatchedKeyword {
@@ -105,7 +111,8 @@ export const TendersTable = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <TooltipProvider>
+      <div className="space-y-4">
       <div className="flex gap-4 items-center">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">Sort by:</label>
@@ -184,9 +191,25 @@ export const TendersTable = () => {
                     </a>
                   </TableCell>
                   <TableCell>
-                    <span className="line-clamp-2">{tender.title}</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="line-clamp-2 cursor-help">{tender.title}</span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-md">
+                        <p>{tender.title}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </TableCell>
-                  <TableCell className="text-sm">{tender.client || "N/A"}</TableCell>
+                  <TableCell className="text-sm">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="truncate block cursor-help">{tender.client || "N/A"}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{tender.client || "N/A"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={getScoreBadgeVariant(tender.score)}>
                       {tender.score}
@@ -232,5 +255,6 @@ export const TendersTable = () => {
         </Table>
       </div>
     </div>
+    </TooltipProvider>
   );
 };
