@@ -41,15 +41,8 @@ const Keywords = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check auth
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-      fetchKeywords();
-    });
-  }, [navigate]);
+    fetchKeywords();
+  }, []);
 
   const fetchKeywords = async () => {
     const { data, error } = await supabase
@@ -60,8 +53,8 @@ const Keywords = () => {
 
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to fetch keywords",
+        title: "Feil",
+        description: "Kunne ikke hente nøkkelord",
         variant: "destructive",
       });
     } else {
@@ -72,8 +65,8 @@ const Keywords = () => {
   const handleAddKeyword = async () => {
     if (!newKeyword.trim()) {
       toast({
-        title: "Error",
-        description: "Keyword cannot be empty",
+        title: "Feil",
+        description: "Nøkkelord kan ikke være tomt",
         variant: "destructive",
       });
       return;
@@ -93,14 +86,14 @@ const Keywords = () => {
 
     if (error) {
       toast({
-        title: "Error",
+        title: "Feil",
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Success",
-        description: "Keyword added",
+        title: "Suksess",
+        description: "Nøkkelord lagt til",
       });
       setNewKeyword("");
       setNewWeight("1");
@@ -117,14 +110,14 @@ const Keywords = () => {
 
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to delete keyword",
+        title: "Feil",
+        description: "Kunne ikke slette nøkkelord",
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Success",
-        description: "Keyword deleted",
+        title: "Suksess",
+        description: "Nøkkelord slettet",
       });
       fetchKeywords();
     }
@@ -137,9 +130,9 @@ const Keywords = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-foreground">Keyword Management</h1>
-          <Button variant="outline" onClick={() => navigate("/dashboard")}>
-            Back to Dashboard
+          <h1 className="text-2xl font-bold text-foreground">Administrer Nøkkelord</h1>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Tilbake til Dashboard
           </Button>
         </div>
       </header>
@@ -147,21 +140,21 @@ const Keywords = () => {
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Card>
           <CardHeader>
-            <CardTitle>Add New Keyword</CardTitle>
+            <CardTitle>Legg til Nøkkelord</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex gap-4 items-end">
               <div className="flex-1">
-                <Label htmlFor="keyword">Keyword</Label>
+                <Label htmlFor="keyword">Nøkkelord</Label>
                 <Input
                   id="keyword"
                   value={newKeyword}
                   onChange={(e) => setNewKeyword(e.target.value)}
-                  placeholder="e.g., AI, machine learning"
+                  placeholder="f.eks. programvareutvikling"
                 />
               </div>
               <div className="w-32">
-                <Label htmlFor="weight">Weight</Label>
+                <Label htmlFor="weight">Vekt</Label>
                 <Input
                   id="weight"
                   type="number"
@@ -171,19 +164,19 @@ const Keywords = () => {
                 />
               </div>
               <div className="w-40">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="category">Kategori</Label>
                 <Select value={newCategory} onValueChange={(v: "positive" | "negative") => setNewCategory(v)}>
                   <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="positive">Positive</SelectItem>
-                    <SelectItem value="negative">Negative</SelectItem>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="positive">Positiv</SelectItem>
+                  <SelectItem value="negative">Negativ</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <Button onClick={handleAddKeyword} disabled={loading}>
-                Add
+                Legg til
               </Button>
             </div>
           </CardContent>
@@ -193,7 +186,7 @@ const Keywords = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                Positive Keywords
+                Positive Nøkkelord
                 <Badge variant="default">{positiveKeywords.length}</Badge>
               </CardTitle>
             </CardHeader>
@@ -201,8 +194,8 @@ const Keywords = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Keyword</TableHead>
-                    <TableHead className="w-20">Weight</TableHead>
+                    <TableHead>Nøkkelord</TableHead>
+                    <TableHead className="w-20">Vekt</TableHead>
                     <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -225,7 +218,7 @@ const Keywords = () => {
                   {positiveKeywords.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center text-muted-foreground">
-                        No positive keywords yet
+                        Ingen positive nøkkelord ennå
                       </TableCell>
                     </TableRow>
                   )}
@@ -237,7 +230,7 @@ const Keywords = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                Negative Keywords
+                Negative Nøkkelord
                 <Badge variant="destructive">{negativeKeywords.length}</Badge>
               </CardTitle>
             </CardHeader>
@@ -245,8 +238,8 @@ const Keywords = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Keyword</TableHead>
-                    <TableHead className="w-20">Weight</TableHead>
+                    <TableHead>Nøkkelord</TableHead>
+                    <TableHead className="w-20">Vekt</TableHead>
                     <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -269,7 +262,7 @@ const Keywords = () => {
                   {negativeKeywords.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center text-muted-foreground">
-                        No negative keywords yet
+                        Ingen negative nøkkelord ennå
                       </TableCell>
                     </TableRow>
                   )}
