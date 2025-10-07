@@ -36,8 +36,14 @@ serve(async (req) => {
 
     console.log(`Fetched ${keywords?.length || 0} keywords`);
 
-    // Fetch tenders from Doffin Public API v2
-    const doffinUrl = 'https://api.doffin.no/public/v2/search';
+    // Try different possible endpoints
+    const possibleEndpoints = [
+      'https://api.doffin.no/public/v2/notices/search',
+      'https://api.doffin.no/public/v2/notices',
+      'https://dof-notices-prod-api.developer.azure-api.net/public/v2/search',
+      'https://dof-notices-prod-api.developer.azure-api.net/public/search'
+    ];
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -55,19 +61,31 @@ serve(async (req) => {
       sortBy: 'publishedDate'
     });
 
-    console.log('Fetching tenders from Doffin API v2...');
-    console.log(`Request URL: ${doffinUrl}?${searchParams}`);
-    const doffinResponse = await fetch(`${doffinUrl}?${searchParams}`, { headers });
+    let doffinData: any = null;
+    let successUrl = '';
     
-    console.log(`Response status: ${doffinResponse.status}`);
-    
-    if (!doffinResponse.ok) {
-      const errorText = await doffinResponse.text();
-      console.error(`API error response: ${errorText}`);
-      throw new Error(`Doffin API error: ${doffinResponse.status} - ${errorText}`);
+    // Try each endpoint until one works
+    for (const endpoint of possibleEndpoints) {
+      try {
+        console.log(`Trying endpoint: ${endpoint}`);
+        const response = await fetch(`${endpoint}?${searchParams}`, { headers });
+        console.log(`Response status: ${response.status}`);
+        
+        if (response.ok) {
+          doffinData = await response.json();
+          successUrl = endpoint;
+          console.log(`Success! Data received from: ${endpoint}`);
+          break;
+        }
+      } catch (err) {
+        console.log(`Failed: ${endpoint} - ${err}`);
+      }
     }
-
-    const doffinData = await doffinResponse.json();
+    
+    if (!doffinData) {
+      throw new Error('Failed to fetch from all known Doffin API endpoints');
+    }
+    
     console.log(`Response data:`, JSON.stringify(doffinData).substring(0, 500));
     
     const notices = Array.isArray(doffinData) ? doffinData : (doffinData.notices || doffinData.results || []);
