@@ -106,8 +106,8 @@ serve(async (req) => {
       }
 
       // Calculate score based on keywords
-      const title = tender.title || tender.noticeTitle || '';
-      const body = tender.description || tender.shortDescription || '';
+      const title = tender.heading || tender.title || '';
+      const body = tender.description || '';
       
       console.log(`Tender ${doffinId} - title: "${title}", body length: ${body.length}`);
       
@@ -130,8 +130,8 @@ serve(async (req) => {
 
       // Only save tenders with score >= 3
       if (score >= 3) {
-        const cpvCodes = tender.cpvCodes || tender.cpv || [];
-        const client = tender.authorityName || tender.buyer?.name || tender.organization || null;
+        const cpvCodes = tender.cpvCodes || [];
+        const client = tender.buyer?.[0]?.name || null;
         
         console.log(`Saving tender ${doffinId} - client: "${client}"`);
         
@@ -142,11 +142,11 @@ serve(async (req) => {
             title: title,
             body: body,
             client: client,
-            deadline: tender.deadline || tender.tenderDeadline,
+            deadline: tender.deadline,
             cpv_codes: cpvCodes,
             score,
             matched_keywords: matchedKeywords,
-            published_date: tender.publicationDate || tender.publishedDate,
+            published_date: tender.publicationDate,
             doffin_url: `https://doffin.no/Notice/Details/${doffinId}`
           });
 
