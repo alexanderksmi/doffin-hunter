@@ -200,7 +200,7 @@ export const TendersTable = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {tender.matched_keywords?.slice(0, 3).map((kw, idx) => (
+                      {tender.matched_keywords?.map((kw, idx) => (
                         <Badge
                           key={idx}
                           variant={kw.category === 'positive' ? 'default' : 'destructive'}
@@ -209,11 +209,6 @@ export const TendersTable = () => {
                           {kw.keyword}
                         </Badge>
                       ))}
-                      {tender.matched_keywords?.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{tender.matched_keywords.length - 3}
-                        </Badge>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell>
