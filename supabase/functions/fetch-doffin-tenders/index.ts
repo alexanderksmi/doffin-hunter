@@ -56,19 +56,27 @@ serve(async (req) => {
     });
 
     console.log('Fetching tenders from Doffin API v2...');
+    console.log(`Request URL: ${doffinUrl}?${searchParams}`);
     const doffinResponse = await fetch(`${doffinUrl}?${searchParams}`, { headers });
     
+    console.log(`Response status: ${doffinResponse.status}`);
+    
     if (!doffinResponse.ok) {
-      throw new Error(`Doffin API error: ${doffinResponse.status}`);
+      const errorText = await doffinResponse.text();
+      console.error(`API error response: ${errorText}`);
+      throw new Error(`Doffin API error: ${doffinResponse.status} - ${errorText}`);
     }
 
     const doffinData = await doffinResponse.json();
-    console.log(`Fetched ${doffinData.length} tenders from Doffin`);
+    console.log(`Response data:`, JSON.stringify(doffinData).substring(0, 500));
+    
+    const notices = Array.isArray(doffinData) ? doffinData : (doffinData.notices || doffinData.results || []);
+    console.log(`Fetched ${notices.length} tenders from Doffin`);
 
     let processedCount = 0;
     let savedCount = 0;
 
-    for (const tender of doffinData) {
+    for (const tender of notices) {
       // Hard filter on CPV codes
       const tenderCpvCodes = tender.cpv_codes || [];
       const hasMatchingCpv = tenderCpvCodes.some((code: string) => 
