@@ -86,6 +86,12 @@ serve(async (req) => {
 
     for (const tender of notices) {
       processedCount++;
+      
+      // Log first tender structure for debugging
+      if (processedCount === 1) {
+        console.log('First tender structure:', JSON.stringify(tender, null, 2));
+        console.log('Available fields:', Object.keys(tender));
+      }
 
       // Check if tender already exists
       const doffinId = tender.doffinReferenceNumber || tender.noticeId || tender.id;
@@ -102,6 +108,9 @@ serve(async (req) => {
       // Calculate score based on keywords
       const title = tender.title || tender.noticeTitle || '';
       const body = tender.description || tender.shortDescription || '';
+      
+      console.log(`Tender ${doffinId} - title: "${title}", body length: ${body.length}`);
+      
       const searchText = `${title} ${body}`.toLowerCase();
       
       let score = 0;
@@ -122,13 +131,17 @@ serve(async (req) => {
       // Only save tenders with score >= 3
       if (score >= 3) {
         const cpvCodes = tender.cpvCodes || tender.cpv || [];
+        const client = tender.authorityName || tender.buyer?.name || tender.organization || null;
+        
+        console.log(`Saving tender ${doffinId} - client: "${client}"`);
+        
         const { error: insertError } = await supabase
           .from('tenders')
           .insert({
             doffin_id: doffinId,
             title: title,
             body: body,
-            client: tender.authorityName || tender.buyer?.name || tender.organization,
+            client: client,
             deadline: tender.deadline || tender.tenderDeadline,
             cpv_codes: cpvCodes,
             score,
