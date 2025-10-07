@@ -41,8 +41,13 @@ const Keywords = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const isAuthenticated = sessionStorage.getItem("authenticated");
+    if (!isAuthenticated) {
+      navigate("/auth");
+      return;
+    }
     fetchKeywords();
-  }, []);
+  }, [navigate]);
 
   const fetchKeywords = async () => {
     const { data, error } = await supabase

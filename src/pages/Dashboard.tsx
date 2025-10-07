@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TendersTable } from "@/components/TendersTable";
@@ -7,6 +8,13 @@ import { useToast } from "@/hooks/use-toast";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const isAuthenticated = sessionStorage.getItem("authenticated");
+    if (!isAuthenticated) {
+      navigate("/auth");
+    }
+  }, [navigate]);
 
   const handleManualFetch = async () => {
     try {
@@ -34,6 +42,11 @@ const Dashboard = () => {
     }
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem("authenticated");
+    navigate("/auth");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -45,6 +58,9 @@ const Dashboard = () => {
             </Button>
             <Button variant="outline" onClick={handleManualFetch}>
               Hent Nå
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              Logg ut
             </Button>
           </div>
         </div>
