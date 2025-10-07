@@ -147,25 +147,26 @@ export const TendersTable = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40%]">Title</TableHead>
+              <TableHead className="w-[35%]">Title</TableHead>
               <TableHead>Client</TableHead>
               <TableHead className="w-20">Score</TableHead>
               <TableHead>Deadline</TableHead>
               <TableHead className="w-24">Published</TableHead>
               <TableHead>Keywords</TableHead>
               <TableHead>CPV Codes</TableHead>
+              <TableHead className="w-16">Link</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   Loading tenders...
                 </TableCell>
               </TableRow>
             ) : tenders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No tenders found. Try adjusting the filters or fetch new tenders.
                 </TableCell>
               </TableRow>
@@ -173,15 +174,7 @@ export const TendersTable = () => {
               tenders.map((tender) => (
                 <TableRow key={tender.id}>
                   <TableCell>
-                    <a
-                      href={tender.doffin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-primary hover:underline"
-                    >
-                      <span className="line-clamp-2">{tender.title}</span>
-                      <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                    </a>
+                    <span className="line-clamp-2">{tender.title}</span>
                   </TableCell>
                   <TableCell className="text-sm">{tender.client || "N/A"}</TableCell>
                   <TableCell>
@@ -226,6 +219,16 @@ export const TendersTable = () => {
                         </Badge>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <a
+                      href={tender.doffin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center text-primary hover:text-primary/80"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
                   </TableCell>
                 </TableRow>
               ))
