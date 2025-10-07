@@ -134,11 +134,11 @@ export const TendersTable = () => {
             <TableRow>
               <TableHead className="w-[40%]">Title</TableHead>
               <TableHead>Client</TableHead>
-              <TableHead>Deadline</TableHead>
-              <TableHead>CPV Codes</TableHead>
               <TableHead className="w-20">Score</TableHead>
-              <TableHead>Keywords</TableHead>
+              <TableHead>Deadline</TableHead>
               <TableHead className="w-24">Published</TableHead>
+              <TableHead>Keywords</TableHead>
+              <TableHead>CPV Codes</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -169,27 +169,16 @@ export const TendersTable = () => {
                     </a>
                   </TableCell>
                   <TableCell className="text-sm">{tender.client || "N/A"}</TableCell>
-                  <TableCell className="text-sm">
-                    {formatDate(tender.deadline)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {tender.cpv_codes?.slice(0, 2).map((code, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {code.slice(0, 8)}
-                        </Badge>
-                      ))}
-                      {tender.cpv_codes?.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{tender.cpv_codes.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
                   <TableCell>
                     <Badge variant={getScoreBadgeVariant(tender.score)}>
                       {tender.score}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {formatDate(tender.deadline)}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatDate(tender.published_date)}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
@@ -209,8 +198,19 @@ export const TendersTable = () => {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(tender.published_date)}
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {tender.cpv_codes?.slice(0, 2).map((code, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {code.slice(0, 8)}
+                        </Badge>
+                      ))}
+                      {tender.cpv_codes?.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{tender.cpv_codes.length - 2}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
