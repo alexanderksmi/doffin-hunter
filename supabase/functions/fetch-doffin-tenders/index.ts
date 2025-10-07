@@ -36,8 +36,8 @@ serve(async (req) => {
 
     console.log(`Fetched ${keywords?.length || 0} keywords`);
 
-    // Fetch tenders from Doffin API (Azure)
-    const doffinUrl = 'https://dof-notices-prod-api.developer.azure-api.net/doffin/notices';
+    // Fetch tenders from Doffin Public API v2
+    const doffinUrl = 'https://api.doffin.no/public/v2/search';
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -48,8 +48,15 @@ serve(async (req) => {
       throw new Error('DOFFIN_API_KEY is not configured');
     }
 
-    console.log('Fetching tenders from Doffin Azure API...');
-    const doffinResponse = await fetch(doffinUrl, { headers });
+    // Search parameters - get recent notices
+    const searchParams = new URLSearchParams({
+      limit: '100',
+      sortOrder: 'desc',
+      sortBy: 'publishedDate'
+    });
+
+    console.log('Fetching tenders from Doffin API v2...');
+    const doffinResponse = await fetch(`${doffinUrl}?${searchParams}`, { headers });
     
     if (!doffinResponse.ok) {
       throw new Error(`Doffin API error: ${doffinResponse.status}`);
