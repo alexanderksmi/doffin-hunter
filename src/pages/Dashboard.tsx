@@ -42,6 +42,39 @@ const Dashboard = () => {
     }
   };
 
+  const handleClearDatabase = async () => {
+    if (!confirm("Er du sikker på at du vil slette alle anbud fra databasen?")) {
+      return;
+    }
+
+    try {
+      toast({
+        title: "Sletter anbud...",
+        description: "Vennligst vent",
+      });
+
+      const { error } = await supabase
+        .from('tenders')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (error) throw error;
+
+      toast({
+        title: "Suksess",
+        description: "All data slettet. Hent nye anbud nå.",
+      });
+      
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: "Feil",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem("authenticated");
     navigate("/auth");
@@ -55,6 +88,9 @@ const Dashboard = () => {
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate("/keywords")}>
               Administrer Nøkkelord
+            </Button>
+            <Button variant="destructive" onClick={handleClearDatabase}>
+              Tøm Database
             </Button>
             <Button variant="outline" onClick={handleManualFetch}>
               Hent Nå
