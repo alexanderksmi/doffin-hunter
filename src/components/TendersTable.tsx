@@ -40,7 +40,7 @@ interface Tender {
 export const TendersTable = () => {
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<"newest" | "score">("score");
+  const [sortBy, setSortBy] = useState<"score" | "published-new" | "published-old" | "deadline-new" | "deadline-old">("score");
   const [minScore, setMinScore] = useState<string>("3");
 
   useEffect(() => {
@@ -55,10 +55,22 @@ export const TendersTable = () => {
       .select('*')
       .gte('score', parseInt(minScore));
 
-    if (sortBy === 'newest') {
-      query = query.order('published_date', { ascending: false });
-    } else {
-      query = query.order('score', { ascending: false });
+    switch (sortBy) {
+      case 'score':
+        query = query.order('score', { ascending: false });
+        break;
+      case 'published-new':
+        query = query.order('published_date', { ascending: false });
+        break;
+      case 'published-old':
+        query = query.order('published_date', { ascending: true });
+        break;
+      case 'deadline-new':
+        query = query.order('deadline', { ascending: false });
+        break;
+      case 'deadline-old':
+        query = query.order('deadline', { ascending: true });
+        break;
     }
 
     const { data, error } = await query;
@@ -97,13 +109,16 @@ export const TendersTable = () => {
       <div className="flex gap-4 items-center">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">Sort by:</label>
-          <Select value={sortBy} onValueChange={(v: "newest" | "score") => setSortBy(v)}>
-            <SelectTrigger className="w-40">
+          <Select value={sortBy} onValueChange={(v: "score" | "published-new" | "published-old" | "deadline-new" | "deadline-old") => setSortBy(v)}>
+            <SelectTrigger className="w-52">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest First</SelectItem>
               <SelectItem value="score">Highest Score</SelectItem>
+              <SelectItem value="published-new">Published - New to Old</SelectItem>
+              <SelectItem value="published-old">Published - Old to New</SelectItem>
+              <SelectItem value="deadline-new">Deadline - New to Old</SelectItem>
+              <SelectItem value="deadline-old">Deadline - Old to New</SelectItem>
             </SelectContent>
           </Select>
         </div>
