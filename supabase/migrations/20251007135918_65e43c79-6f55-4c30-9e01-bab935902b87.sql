@@ -1,0 +1,1 @@
+UPDATE public.keywords SET weight = 3 WHERE keyword = 'frittstående arkiv';
