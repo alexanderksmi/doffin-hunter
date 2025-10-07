@@ -40,7 +40,7 @@ interface Tender {
 export const TendersTable = () => {
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<"newest" | "score">("newest");
+  const [sortBy, setSortBy] = useState<"newest" | "score">("score");
   const [minScore, setMinScore] = useState<string>("3");
 
   useEffect(() => {
