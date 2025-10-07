@@ -36,16 +36,19 @@ serve(async (req) => {
 
     console.log(`Fetched ${keywords?.length || 0} keywords`);
 
-    // Fetch tenders from Doffin API
-    const doffinUrl = 'https://hotell.difi.no/api/json/doffin/notices';
+    // Fetch tenders from Doffin API (Azure)
+    const doffinUrl = 'https://dof-notices-prod-api.developer.azure-api.net/doffin/notices';
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
     
     if (doffinApiKey) {
-      headers['Authorization'] = `Bearer ${doffinApiKey}`;
+      headers['Ocp-Apim-Subscription-Key'] = doffinApiKey;
+    } else {
+      throw new Error('DOFFIN_API_KEY is not configured');
     }
 
+    console.log('Fetching tenders from Doffin Azure API...');
     const doffinResponse = await fetch(doffinUrl, { headers });
     
     if (!doffinResponse.ok) {
