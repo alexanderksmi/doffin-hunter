@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,21 +21,14 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2 } from "lucide-react";
-
-interface Keyword {
-  id: string;
-  keyword: string;
-  weight: number;
-  category: 'positive' | 'negative';
-}
+import { Trash2, RefreshCw } from "lucide-react";
+import { useKeywords } from "@/contexts/KeywordsContext";
 
 const Keywords = () => {
-  const [keywords, setKeywords] = useState<Keyword[]>([]);
+  const { keywords, addKeyword, deleteKeyword, resetToStandard, loading } = useKeywords();
   const [newKeyword, setNewKeyword] = useState("");
   const [newWeight, setNewWeight] = useState("1");
   const [newCategory, setNewCategory] = useState<"positive" | "negative">("positive");
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -46,28 +38,9 @@ const Keywords = () => {
       navigate("/auth");
       return;
     }
-    fetchKeywords();
   }, [navigate]);
 
-  const fetchKeywords = async () => {
-    const { data, error } = await supabase
-      .from('keywords')
-      .select('*')
-      .order('category', { ascending: true })
-      .order('keyword', { ascending: true });
-
-    if (error) {
-      toast({
-        title: "Feil",
-        description: "Kunne ikke hente nøkkelord",
-        variant: "destructive",
-      });
-    } else {
-      setKeywords(data || []);
-    }
-  };
-
-  const handleAddKeyword = async () => {
+  const handleAddKeyword = () => {
     if (!newKeyword.trim()) {
       toast({
         title: "Feil",
@@ -77,55 +50,36 @@ const Keywords = () => {
       return;
     }
 
-    setLoading(true);
+    addKeyword({
+      keyword: newKeyword.trim(),
+      weight: parseInt(newWeight),
+      category: newCategory,
+    });
 
-    const { error } = await supabase
-      .from('keywords')
-      .insert({
-        keyword: newKeyword.trim(),
-        weight: parseInt(newWeight),
-        category: newCategory,
-      });
-
-    setLoading(false);
-
-    if (error) {
-      toast({
-        title: "Feil",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Suksess",
-        description: "Nøkkelord lagt til",
-      });
-      setNewKeyword("");
-      setNewWeight("1");
-      setNewCategory("positive");
-      fetchKeywords();
-    }
+    toast({
+      title: "Suksess",
+      description: "Nøkkelord lagt til (midlertidig for din sesjon)",
+    });
+    
+    setNewKeyword("");
+    setNewWeight("1");
+    setNewCategory("positive");
   };
 
-  const handleDeleteKeyword = async (id: string) => {
-    const { error } = await supabase
-      .from('keywords')
-      .delete()
-      .eq('id', id);
+  const handleDeleteKeyword = (id: string) => {
+    deleteKeyword(id);
+    toast({
+      title: "Suksess",
+      description: "Nøkkelord fjernet (midlertidig for din sesjon)",
+    });
+  };
 
-    if (error) {
-      toast({
-        title: "Feil",
-        description: "Kunne ikke slette nøkkelord",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Suksess",
-        description: "Nøkkelord slettet",
-      });
-      fetchKeywords();
-    }
+  const handleReset = async () => {
+    await resetToStandard();
+    toast({
+      title: "Tilbakestilt",
+      description: "Nøkkelord tilbakestilt til standard",
+    });
   };
 
   const positiveKeywords = keywords.filter(k => k.category === 'positive');
@@ -135,10 +89,21 @@ const Keywords = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-foreground">Administrer Nøkkelord</h1>
-          <Button variant="outline" onClick={() => navigate("/")}>
-            Tilbake til Dashboard
-          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Administrer Nøkkelord</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Endringer er midlertidige og gjelder kun din sesjon
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleReset}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Tilbakestill
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/")}>
+              Tilbake til Dashboard
+            </Button>
+          </div>
         </div>
       </header>
 

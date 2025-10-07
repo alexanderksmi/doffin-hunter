@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TendersTable } from "@/components/TendersTable";
 import { useToast } from "@/hooks/use-toast";
+import { useKeywords } from "@/contexts/KeywordsContext";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { keywords } = useKeywords();
 
   useEffect(() => {
     const isAuthenticated = sessionStorage.getItem("authenticated");
@@ -23,13 +25,16 @@ const Dashboard = () => {
         description: "Dette kan ta noen sekunder",
       });
 
-      const { error } = await supabase.functions.invoke('fetch-doffin-tenders');
+      // Send session keywords to edge function
+      const { error } = await supabase.functions.invoke('fetch-doffin-tenders', {
+        body: { keywords }
+      });
       
       if (error) throw error;
 
       toast({
         title: "Suksess",
-        description: "Anbud hentet",
+        description: "Anbud hentet med dine nøkkelord",
       });
       
       window.location.reload();

@@ -24,17 +24,26 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch keywords from database
-    const { data: keywords, error: keywordsError } = await supabase
-      .from('keywords')
-      .select('keyword, weight, category');
+    // Check if custom keywords were provided in request body
+    const body = await req.json().catch(() => ({}));
+    let keywords = body.keywords;
 
-    if (keywordsError) {
-      console.error('Error fetching keywords:', keywordsError);
-      throw keywordsError;
+    // If no custom keywords provided, fetch from database (standard)
+    if (!keywords || keywords.length === 0) {
+      const { data: dbKeywords, error: keywordsError } = await supabase
+        .from('keywords')
+        .select('keyword, weight, category');
+
+      if (keywordsError) {
+        console.error('Error fetching keywords:', keywordsError);
+        throw keywordsError;
+      }
+      
+      keywords = dbKeywords;
+      console.log(`Using standard keywords from database: ${keywords?.length || 0}`);
+    } else {
+      console.log(`Using custom keywords from request: ${keywords.length}`);
     }
-
-    console.log(`Fetched ${keywords?.length || 0} keywords`);
 
     // Fetch tenders from Doffin Public API v2
     const baseUrl = 'https://api.doffin.no/public/v2/search';
