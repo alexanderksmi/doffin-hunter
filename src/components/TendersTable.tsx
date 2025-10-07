@@ -147,6 +147,7 @@ export const TendersTable = () => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">Link</TableHead>
               <TableHead className="w-[35%]">Title</TableHead>
               <TableHead>Client</TableHead>
               <TableHead className="w-20">Score</TableHead>
@@ -154,7 +155,6 @@ export const TendersTable = () => {
               <TableHead className="w-24">Published</TableHead>
               <TableHead>Keywords</TableHead>
               <TableHead>CPV Codes</TableHead>
-              <TableHead className="w-16">Link</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -173,6 +173,16 @@ export const TendersTable = () => {
             ) : (
               tenders.map((tender) => (
                 <TableRow key={tender.id}>
+                  <TableCell>
+                    <a
+                      href={tender.doffin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center text-primary hover:text-primary/80"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </TableCell>
                   <TableCell>
                     <span className="line-clamp-2">{tender.title}</span>
                   </TableCell>
@@ -219,16 +229,6 @@ export const TendersTable = () => {
                         </Badge>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <a
-                      href={tender.doffin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center text-primary hover:text-primary/80"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
                   </TableCell>
                 </TableRow>
               ))
