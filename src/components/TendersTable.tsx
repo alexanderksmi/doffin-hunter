@@ -249,7 +249,6 @@ export const TendersTable = () => {
               tenders.map((tender) => (
                 <TableRow 
                   key={tender.id}
-                  className={isTopScore(tender.score) ? "bg-primary/10 hover:bg-primary/15" : ""}
                 >
                   <TableCell>
                     <a
@@ -282,7 +281,10 @@ export const TendersTable = () => {
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getScoreBadgeVariant(tender.score)}>
+                    <Badge 
+                      variant={getScoreBadgeVariant(tender.score)}
+                      className={isTopScore(tender.score) ? "bg-blue-500 hover:bg-blue-600 text-white" : ""}
+                    >
                       {tender.score}
                     </Badge>
                   </TableCell>
