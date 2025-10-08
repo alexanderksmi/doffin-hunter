@@ -68,6 +68,16 @@ serve(async (req) => {
     TARGET_CPV_CODES.forEach(code => {
       params.append('cpvCode', code);
     });
+    
+    // Add notice type filters to include all relevant categories
+    // PIN (Prior Information Notice) - Forhåndskunngjøring
+    params.append('noticeType', 'PIN');
+    // QS (Qualification System) - Kvalifikasjonsordning
+    params.append('noticeType', 'QS');
+    // CN (Contract Notice) - Kunngjøring av konkurranse
+    params.append('noticeType', 'CN');
+    // DPS (Dynamic Purchasing System) - Dynamisk innkjøpsordning
+    params.append('noticeType', 'DPS');
 
     const searchUrl = `${baseUrl}?${params.toString()}`;
     console.log('Fetching tenders from Doffin API v2...');
