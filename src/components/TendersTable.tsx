@@ -179,7 +179,7 @@ export const TendersTable = () => {
     const hasArkivKeyword = tender.matched_keywords?.some(
       kw => kw.keyword.toLowerCase() === 'arkiv'
     );
-    return tender.score >= 5 && hasArkivKeyword;
+    return hasArkivKeyword;
   };
 
   return (
