@@ -281,12 +281,15 @@ export const TendersTable = () => {
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={isTopScore(tender.score) ? undefined : getScoreBadgeVariant(tender.score)}
-                      className={isTopScore(tender.score) ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-500" : ""}
-                    >
-                      {tender.score}
-                    </Badge>
+                    {isTopScore(tender.score) ? (
+                      <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-blue-500">
+                        {tender.score}
+                      </Badge>
+                    ) : (
+                      <Badge variant={getScoreBadgeVariant(tender.score)}>
+                        {tender.score}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm">
                     {formatDate(tender.deadline)}
