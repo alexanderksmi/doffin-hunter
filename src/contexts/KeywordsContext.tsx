@@ -96,6 +96,9 @@ export const KeywordsProvider = ({ children }: { children: ReactNode }) => {
       const updated = [...keywords, data as Keyword];
       setKeywordsState(updated);
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
+      
+      // Automatically fetch new tenders with the updated keywords
+      await fetchNewTenders(updated);
     }
   };
 
@@ -113,6 +116,19 @@ export const KeywordsProvider = ({ children }: { children: ReactNode }) => {
     const updated = keywords.filter(k => k.id !== id);
     setKeywordsState(updated);
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
+    
+    // Automatically fetch new tenders with the updated keywords
+    await fetchNewTenders(updated);
+  };
+
+  const fetchNewTenders = async (updatedKeywords: Keyword[]) => {
+    try {
+      await supabase.functions.invoke('fetch-doffin-tenders', {
+        body: { keywords: updatedKeywords }
+      });
+    } catch (error) {
+      console.error('Failed to fetch new tenders:', error);
+    }
   };
 
   return (
