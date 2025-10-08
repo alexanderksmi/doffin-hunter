@@ -44,10 +44,19 @@ export const KeywordsProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
-  // Initialize keywords from database (always start fresh)
+  // Initialize keywords from sessionStorage or database
   useEffect(() => {
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    fetchStandardKeywords();
+    const storedKeywords = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (storedKeywords) {
+      try {
+        setKeywordsState(JSON.parse(storedKeywords));
+        setLoading(false);
+      } catch (e) {
+        fetchStandardKeywords();
+      }
+    } else {
+      fetchStandardKeywords();
+    }
   }, []);
 
   const setKeywords = (newKeywords: Keyword[]) => {
