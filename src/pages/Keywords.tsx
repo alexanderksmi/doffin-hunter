@@ -25,7 +25,7 @@ import { Trash2, RefreshCw } from "lucide-react";
 import { useKeywords } from "@/contexts/KeywordsContext";
 
 const Keywords = () => {
-  const { keywords, addKeywordToDatabase, deleteKeywordFromDatabase, resetToStandard, loading } = useKeywords();
+  const { keywords, addKeyword, deleteKeyword, resetToStandard, loading } = useKeywords();
   const [newKeyword, setNewKeyword] = useState("");
   const [newWeight, setNewWeight] = useState("1");
   const [newCategory, setNewCategory] = useState<"positive" | "negative">("positive");
@@ -40,7 +40,7 @@ const Keywords = () => {
     }
   }, [navigate]);
 
-  const handleAddKeyword = async () => {
+  const handleAddKeyword = () => {
     if (!newKeyword.trim()) {
       toast({
         title: "Feil",
@@ -50,44 +50,28 @@ const Keywords = () => {
       return;
     }
 
-    try {
-      await addKeywordToDatabase({
-        keyword: newKeyword.trim(),
-        weight: parseInt(newWeight),
-        category: newCategory,
-      });
+    addKeyword({
+      keyword: newKeyword.trim(),
+      weight: parseInt(newWeight),
+      category: newCategory,
+    });
 
-      toast({
-        title: "Suksess",
-        description: "Nøkkelord lagt til",
-      });
-      
-      setNewKeyword("");
-      setNewWeight("1");
-      setNewCategory("positive");
-    } catch (error) {
-      toast({
-        title: "Feil",
-        description: "Kunne ikke legge til nøkkelord",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Suksess",
+      description: "Nøkkelord lagt til i din sesjon",
+    });
+    
+    setNewKeyword("");
+    setNewWeight("1");
+    setNewCategory("positive");
   };
 
-  const handleDeleteKeyword = async (id: string) => {
-    try {
-      await deleteKeywordFromDatabase(id);
-      toast({
-        title: "Suksess",
-        description: "Nøkkelord fjernet",
-      });
-    } catch (error) {
-      toast({
-        title: "Feil",
-        description: "Kunne ikke fjerne nøkkelord",
-        variant: "destructive",
-      });
-    }
+  const handleDeleteKeyword = (id: string) => {
+    deleteKeyword(id);
+    toast({
+      title: "Suksess",
+      description: "Nøkkelord fjernet fra din sesjon",
+    });
   };
 
   const handleReset = async () => {
