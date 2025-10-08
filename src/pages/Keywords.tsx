@@ -82,8 +82,8 @@ const Keywords = () => {
     });
   };
 
-  const positiveKeywords = keywords.filter(k => k.category === 'positive');
-  const negativeKeywords = keywords.filter(k => k.category === 'negative');
+  const positiveKeywords = keywords.filter(k => k.category === 'positive').sort((a, b) => b.weight - a.weight);
+  const negativeKeywords = keywords.filter(k => k.category === 'negative').sort((a, b) => b.weight - a.weight);
 
   return (
     <div className="min-h-screen bg-background">

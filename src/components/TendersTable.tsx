@@ -258,7 +258,7 @@ export const TendersTable = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {tender.matched_keywords?.map((kw, idx) => (
+                      {tender.matched_keywords?.sort((a, b) => b.weight - a.weight).map((kw, idx) => (
                         <Badge
                           key={idx}
                           variant={kw.category === 'positive' ? 'default' : 'destructive'}
