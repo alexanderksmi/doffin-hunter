@@ -176,8 +176,8 @@ export const TendersTable = () => {
               <SelectItem value="score">Highest Score</SelectItem>
               <SelectItem value="published-new">Published - New to Old</SelectItem>
               <SelectItem value="published-old">Published - Old to New</SelectItem>
-              <SelectItem value="deadline-new">Deadline - New to Old</SelectItem>
-              <SelectItem value="deadline-old">Deadline - Old to New</SelectItem>
+              <SelectItem value="deadline-new">Deadline - Soon to Late</SelectItem>
+              <SelectItem value="deadline-old">Deadline - Late to Soon</SelectItem>
             </SelectContent>
           </Select>
         </div>
