@@ -165,6 +165,17 @@ export const TendersTable = () => {
     });
   };
 
+  // Find the two highest unique scores
+  const getTopTwoScores = () => {
+    const uniqueScores = [...new Set(tenders.map(t => t.score))].sort((a, b) => b - a);
+    return uniqueScores.slice(0, 2);
+  };
+
+  const isTopScore = (score: number) => {
+    const topScores = getTopTwoScores();
+    return topScores.includes(score);
+  };
+
   return (
     <TooltipProvider>
       <div className="space-y-4">
@@ -236,7 +247,10 @@ export const TendersTable = () => {
               </TableRow>
             ) : (
               tenders.map((tender) => (
-                <TableRow key={tender.id}>
+                <TableRow 
+                  key={tender.id}
+                  className={isTopScore(tender.score) ? "bg-primary/10 hover:bg-primary/15" : ""}
+                >
                   <TableCell>
                     <a
                       href={tender.doffin_url}
