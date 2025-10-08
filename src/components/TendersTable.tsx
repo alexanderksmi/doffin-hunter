@@ -219,6 +219,12 @@ export const TendersTable = () => {
           </Select>
         </div>
 
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+          <span>=</span>
+          <span>Nevner Arkiv</span>
+        </div>
+
         <div className="ml-auto text-sm text-muted-foreground">
           {tenders.length} tenders found
         </div>
