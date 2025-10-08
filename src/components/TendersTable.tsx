@@ -46,15 +46,17 @@ interface Tender {
 }
 
 export const TendersTable = () => {
-  const { keywords } = useKeywords();
+  const { keywords, loading: keywordsLoading } = useKeywords();
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"score" | "published-new" | "published-old" | "deadline-new" | "deadline-old">("score");
   const [minScore, setMinScore] = useState<string>("3");
 
   useEffect(() => {
-    fetchTenders();
-  }, [sortBy, minScore, keywords]);
+    if (!keywordsLoading) {
+      fetchTenders();
+    }
+  }, [sortBy, minScore, keywords, keywordsLoading]);
 
   const recalculateTenderScore = (tender: any): Tender => {
     const searchText = `${tender.title} ${tender.body}`.toLowerCase();
