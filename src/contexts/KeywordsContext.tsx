@@ -14,6 +14,8 @@ interface KeywordsContextType {
   addKeyword: (keyword: Omit<Keyword, 'id'>) => void;
   deleteKeyword: (id: string) => void;
   resetToStandard: () => Promise<void>;
+  addKeywordToDatabase: (keyword: Omit<Keyword, 'id'>) => Promise<void>;
+  deleteKeywordFromDatabase: (id: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -83,6 +85,45 @@ export const KeywordsProvider = ({ children }: { children: ReactNode }) => {
     await fetchStandardKeywords();
   };
 
+  const addKeywordToDatabase = async (newKeyword: Omit<Keyword, 'id'>) => {
+    const { data, error } = await supabase
+      .from('keywords')
+      .insert({
+        keyword: newKeyword.keyword,
+        weight: newKeyword.weight,
+        category: newKeyword.category
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    // Update local state and session
+    if (data) {
+      const updated = [...keywords, data as Keyword];
+      setKeywordsState(updated);
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
+    }
+  };
+
+  const deleteKeywordFromDatabase = async (id: string) => {
+    const { error } = await supabase
+      .from('keywords')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
+    // Update local state and session
+    const updated = keywords.filter(k => k.id !== id);
+    setKeywordsState(updated);
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
+  };
+
   return (
     <KeywordsContext.Provider
       value={{
@@ -91,6 +132,8 @@ export const KeywordsProvider = ({ children }: { children: ReactNode }) => {
         addKeyword,
         deleteKeyword,
         resetToStandard,
+        addKeywordToDatabase,
+        deleteKeywordFromDatabase,
         loading,
       }}
     >

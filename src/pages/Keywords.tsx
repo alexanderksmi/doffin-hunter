@@ -25,7 +25,7 @@ import { Trash2, RefreshCw } from "lucide-react";
 import { useKeywords } from "@/contexts/KeywordsContext";
 
 const Keywords = () => {
-  const { keywords, addKeyword, deleteKeyword, resetToStandard, loading } = useKeywords();
+  const { keywords, addKeywordToDatabase, deleteKeywordFromDatabase, resetToStandard, loading } = useKeywords();
   const [newKeyword, setNewKeyword] = useState("");
   const [newWeight, setNewWeight] = useState("1");
   const [newCategory, setNewCategory] = useState<"positive" | "negative">("positive");
@@ -40,7 +40,7 @@ const Keywords = () => {
     }
   }, [navigate]);
 
-  const handleAddKeyword = () => {
+  const handleAddKeyword = async () => {
     if (!newKeyword.trim()) {
       toast({
         title: "Feil",
@@ -50,28 +50,44 @@ const Keywords = () => {
       return;
     }
 
-    addKeyword({
-      keyword: newKeyword.trim(),
-      weight: parseInt(newWeight),
-      category: newCategory,
-    });
+    try {
+      await addKeywordToDatabase({
+        keyword: newKeyword.trim(),
+        weight: parseInt(newWeight),
+        category: newCategory,
+      });
 
-    toast({
-      title: "Suksess",
-      description: "Nøkkelord lagt til (midlertidig for din sesjon)",
-    });
-    
-    setNewKeyword("");
-    setNewWeight("1");
-    setNewCategory("positive");
+      toast({
+        title: "Suksess",
+        description: "Nøkkelord lagret permanent til databasen",
+      });
+      
+      setNewKeyword("");
+      setNewWeight("1");
+      setNewCategory("positive");
+    } catch (error: any) {
+      toast({
+        title: "Feil",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteKeyword = (id: string) => {
-    deleteKeyword(id);
-    toast({
-      title: "Suksess",
-      description: "Nøkkelord fjernet (midlertidig for din sesjon)",
-    });
+  const handleDeleteKeyword = async (id: string) => {
+    try {
+      await deleteKeywordFromDatabase(id);
+      toast({
+        title: "Suksess",
+        description: "Nøkkelord slettet permanent fra databasen",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Feil",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleReset = async () => {
@@ -92,7 +108,7 @@ const Keywords = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Administrer Nøkkelord</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Endringer er midlertidige og gjelder kun din sesjon
+              Dette er standard-nøkkelord som brukes på nettsiden
             </p>
           </div>
           <div className="flex gap-2">
