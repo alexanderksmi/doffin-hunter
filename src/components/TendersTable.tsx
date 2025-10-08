@@ -133,7 +133,18 @@ export const TendersTable = () => {
 
       // Sort by score or deadline if needed
       if (sortBy === 'score') {
-        recalculatedTenders.sort((a, b) => b.score - a.score);
+        recalculatedTenders.sort((a, b) => {
+          // First sort by score
+          if (b.score !== a.score) {
+            return b.score - a.score;
+          }
+          // If same score, prioritize blue (arkiv + score >= 5)
+          const aIsBlue = isTopScore(a);
+          const bIsBlue = isTopScore(b);
+          if (aIsBlue && !bIsBlue) return -1;
+          if (!aIsBlue && bIsBlue) return 1;
+          return 0;
+        });
       } else if (sortBy === 'deadline-new' || sortBy === 'deadline-old') {
         recalculatedTenders.sort((a, b) => {
           // Treat null/undefined deadlines as far future dates
@@ -164,15 +175,11 @@ export const TendersTable = () => {
     });
   };
 
-  // Find the two highest unique scores
-  const getTopTwoScores = () => {
-    const uniqueScores = [...new Set(tenders.map(t => t.score))].sort((a, b) => b - a);
-    return uniqueScores.slice(0, 2);
-  };
-
-  const isTopScore = (score: number) => {
-    const topScores = getTopTwoScores();
-    return topScores.includes(score);
+  const isTopScore = (tender: Tender) => {
+    const hasArkivKeyword = tender.matched_keywords?.some(
+      kw => kw.keyword.toLowerCase() === 'arkiv'
+    );
+    return tender.score >= 5 && hasArkivKeyword;
   };
 
   return (
@@ -280,7 +287,7 @@ export const TendersTable = () => {
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                    {isTopScore(tender.score) ? (
+                    {isTopScore(tender) ? (
                       <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-blue-500">
                         {tender.score}
                       </Badge>
