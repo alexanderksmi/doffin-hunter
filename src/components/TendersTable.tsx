@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useKeywords } from "@/contexts/KeywordsContext";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -34,6 +35,7 @@ interface Tender {
   id: string;
   doffin_id: string;
   title: string;
+  body: string;
   client: string;
   deadline: string;
   cpv_codes: string[];
@@ -44,6 +46,7 @@ interface Tender {
 }
 
 export const TendersTable = () => {
+  const { keywords } = useKeywords();
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"score" | "published-new" | "published-old" | "deadline-new" | "deadline-old">("score");
@@ -51,20 +54,42 @@ export const TendersTable = () => {
 
   useEffect(() => {
     fetchTenders();
-  }, [sortBy, minScore]);
+  }, [sortBy, minScore, keywords]);
+
+  const recalculateTenderScore = (tender: any): Tender => {
+    const searchText = `${tender.title} ${tender.body}`.toLowerCase();
+    
+    let score = 0;
+    const matchedKeywords: MatchedKeyword[] = [];
+
+    for (const kw of keywords) {
+      if (searchText.includes(kw.keyword.toLowerCase())) {
+        const weight = kw.category === 'negative' ? -kw.weight : kw.weight;
+        score += weight;
+        matchedKeywords.push({
+          keyword: kw.keyword,
+          weight: kw.weight,
+          category: kw.category
+        });
+      }
+    }
+
+    return {
+      ...tender,
+      score,
+      matched_keywords: matchedKeywords
+    };
+  };
 
   const fetchTenders = async () => {
     setLoading(true);
     
+    // Fetch all tenders without score filter initially
     let query = supabase
       .from('tenders')
-      .select('*')
-      .gte('score', parseInt(minScore));
+      .select('*');
 
     switch (sortBy) {
-      case 'score':
-        query = query.order('score', { ascending: false });
-        break;
       case 'published-new':
         query = query.order('published_date', { ascending: false });
         break;
@@ -77,6 +102,9 @@ export const TendersTable = () => {
       case 'deadline-old':
         query = query.order('deadline', { ascending: true });
         break;
+      default:
+        // For score sorting, we'll sort after recalculation
+        break;
     }
 
     const { data, error } = await query;
@@ -84,12 +112,17 @@ export const TendersTable = () => {
     if (error) {
       console.error('Error fetching tenders:', error);
     } else {
-      // Cast matched_keywords from Json to MatchedKeyword[]
-      const tendersWithTypedKeywords = (data || []).map(tender => ({
-        ...tender,
-        matched_keywords: (tender.matched_keywords as unknown as MatchedKeyword[]) || []
-      }));
-      setTenders(tendersWithTypedKeywords);
+      // Recalculate scores based on session keywords
+      const recalculatedTenders = (data || [])
+        .map(recalculateTenderScore)
+        .filter(tender => tender.score >= parseInt(minScore));
+
+      // Sort by score if needed
+      if (sortBy === 'score') {
+        recalculatedTenders.sort((a, b) => b.score - a.score);
+      }
+
+      setTenders(recalculatedTenders);
     }
     
     setLoading(false);
