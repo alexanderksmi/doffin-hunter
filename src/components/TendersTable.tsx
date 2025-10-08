@@ -50,7 +50,7 @@ export const TendersTable = () => {
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"score" | "published-new" | "published-old" | "deadline-new" | "deadline-old">("score");
-  const [minScore, setMinScore] = useState<string>("3");
+  const [minScore, setMinScore] = useState<string>("1");
 
   useEffect(() => {
     if (!keywordsLoading) {
@@ -117,7 +117,24 @@ export const TendersTable = () => {
       // Recalculate scores based on session keywords
       const recalculatedTenders = (data || [])
         .map(recalculateTenderScore)
-        .filter(tender => tender.score >= parseInt(minScore));
+        .filter(tender => {
+          // Apply new scoring rules:
+          // 1. 1 keyword match: Only show if weight >= 3
+          // 2. 2 keyword matches: Show if totalScore >= 4
+          // 3. 3+ keyword matches: Always show
+          const numMatches = tender.matched_keywords.length;
+          
+          if (numMatches === 0) return false;
+          
+          if (numMatches === 1) {
+            return tender.matched_keywords[0].weight >= 3 && tender.score >= parseInt(minScore);
+          } else if (numMatches === 2) {
+            return tender.score >= 4 && tender.score >= parseInt(minScore);
+          } else {
+            // 3+ matches: always show if meets minScore
+            return tender.score >= parseInt(minScore);
+          }
+        });
 
       // Sort by score if needed
       if (sortBy === 'score') {
@@ -172,6 +189,8 @@ export const TendersTable = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="1">1+</SelectItem>
+              <SelectItem value="2">2+</SelectItem>
               <SelectItem value="3">3+</SelectItem>
               <SelectItem value="4">4+</SelectItem>
               <SelectItem value="5">5+</SelectItem>

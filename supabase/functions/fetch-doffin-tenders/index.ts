@@ -137,8 +137,27 @@ serve(async (req) => {
         }
       }
 
-      // Only save tenders with score >= 3
-      if (score >= 3) {
+      // New scoring rules:
+      // 1. 1 keyword match: Save only if weight >= 3
+      // 2. 2 keyword matches: Save if totalScore >= 4
+      // 3. 3+ keyword matches: Always save
+      const numMatches = matchedKeywords.length;
+      let shouldSave = false;
+
+      if (numMatches === 1 && matchedKeywords[0].weight >= 3) {
+        shouldSave = true;
+        console.log(`Tender ${doffinId} - 1 match with weight ${matchedKeywords[0].weight} >= 3: SAVING`);
+      } else if (numMatches === 2 && score >= 4) {
+        shouldSave = true;
+        console.log(`Tender ${doffinId} - 2 matches with score ${score} >= 4: SAVING`);
+      } else if (numMatches >= 3) {
+        shouldSave = true;
+        console.log(`Tender ${doffinId} - ${numMatches} matches: SAVING`);
+      } else {
+        console.log(`Tender ${doffinId} - ${numMatches} matches with score ${score}: SKIPPING`);
+      }
+
+      if (shouldSave) {
         const cpvCodes = tender.cpvCodes || [];
         const client = tender.buyer?.[0]?.name || null;
         
