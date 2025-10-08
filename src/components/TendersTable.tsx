@@ -168,12 +168,17 @@ export const TendersTable = () => {
   // Find the two highest unique scores
   const getTopTwoScores = () => {
     const uniqueScores = [...new Set(tenders.map(t => t.score))].sort((a, b) => b - a);
-    return uniqueScores.slice(0, 2);
+    const topTwo = uniqueScores.slice(0, 2);
+    console.log('All unique scores:', uniqueScores);
+    console.log('Top two scores:', topTwo);
+    return topTwo;
   };
 
   const isTopScore = (score: number) => {
     const topScores = getTopTwoScores();
-    return topScores.includes(score);
+    const result = topScores.includes(score);
+    console.log(`Checking score ${score}:`, result, 'Top scores:', topScores);
+    return result;
   };
 
   return (
