@@ -25,7 +25,7 @@ import { Trash2, RefreshCw } from "lucide-react";
 import { useKeywords } from "@/contexts/KeywordsContext";
 
 const Keywords = () => {
-  const { keywords, addKeyword, deleteKeyword, resetToStandard, loading } = useKeywords();
+  const { keywords, addKeywordToDatabase, deleteKeywordFromDatabase, resetToStandard, loading } = useKeywords();
   const [newKeyword, setNewKeyword] = useState("");
   const [newWeight, setNewWeight] = useState("1");
   const [newCategory, setNewCategory] = useState<"positive" | "negative">("positive");
@@ -40,7 +40,7 @@ const Keywords = () => {
     }
   }, [navigate]);
 
-  const handleAddKeyword = () => {
+  const handleAddKeyword = async () => {
     if (!newKeyword.trim()) {
       toast({
         title: "Feil",
@@ -50,28 +50,44 @@ const Keywords = () => {
       return;
     }
 
-    addKeyword({
-      keyword: newKeyword.trim(),
-      weight: parseInt(newWeight),
-      category: newCategory,
-    });
+    try {
+      await addKeywordToDatabase({
+        keyword: newKeyword.trim(),
+        weight: parseInt(newWeight),
+        category: newCategory,
+      });
 
-    toast({
-      title: "Suksess",
-      description: "Nøkkelord lagt til i din sesjon",
-    });
-    
-    setNewKeyword("");
-    setNewWeight("1");
-    setNewCategory("positive");
+      toast({
+        title: "Suksess",
+        description: "Nøkkelord lagt til",
+      });
+      
+      setNewKeyword("");
+      setNewWeight("1");
+      setNewCategory("positive");
+    } catch (error) {
+      toast({
+        title: "Feil",
+        description: "Kunne ikke legge til nøkkelord",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteKeyword = (id: string) => {
-    deleteKeyword(id);
-    toast({
-      title: "Suksess",
-      description: "Nøkkelord fjernet fra din sesjon",
-    });
+  const handleDeleteKeyword = async (id: string) => {
+    try {
+      await deleteKeywordFromDatabase(id);
+      toast({
+        title: "Suksess",
+        description: "Nøkkelord fjernet",
+      });
+    } catch (error) {
+      toast({
+        title: "Feil",
+        description: "Kunne ikke fjerne nøkkelord",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleReset = async () => {
