@@ -168,17 +168,12 @@ export const TendersTable = () => {
   // Find the two highest unique scores
   const getTopTwoScores = () => {
     const uniqueScores = [...new Set(tenders.map(t => t.score))].sort((a, b) => b - a);
-    const topTwo = uniqueScores.slice(0, 2);
-    console.log('All unique scores:', uniqueScores);
-    console.log('Top two scores:', topTwo);
-    return topTwo;
+    return uniqueScores.slice(0, 2);
   };
 
   const isTopScore = (score: number) => {
     const topScores = getTopTwoScores();
-    const result = topScores.includes(score);
-    console.log(`Checking score ${score}:`, result, 'Top scores:', topScores);
-    return result;
+    return topScores.includes(score);
   };
 
   return (
@@ -287,8 +282,8 @@ export const TendersTable = () => {
                   </TableCell>
                   <TableCell>
                     <Badge 
-                      variant={getScoreBadgeVariant(tender.score)}
-                      className={isTopScore(tender.score) ? "bg-blue-500 hover:bg-blue-600 text-white" : ""}
+                      variant={isTopScore(tender.score) ? undefined : getScoreBadgeVariant(tender.score)}
+                      className={isTopScore(tender.score) ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-500" : ""}
                     >
                       {tender.score}
                     </Badge>
