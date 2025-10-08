@@ -59,7 +59,6 @@ serve(async (req) => {
 
     // Build search parameters
     const params = new URLSearchParams({
-      status: 'ACTIVE',
       numHitsPerPage: '100',
       page: '1',
       sortBy: 'PUBLICATION_DATE_DESC'
