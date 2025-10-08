@@ -151,7 +151,6 @@ export const TendersTable = () => {
   };
 
   const getScoreBadgeVariant = (score: number): "default" | "secondary" | "destructive" => {
-    if (score >= 5) return "default";
     if (score >= 3) return "secondary";
     return "destructive";
   };
