@@ -49,6 +49,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem("authenticated");
+    sessionStorage.removeItem("session-keywords");
     navigate("/auth");
   };
 

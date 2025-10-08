@@ -19,11 +19,13 @@ interface KeywordsContextType {
 
 const KeywordsContext = createContext<KeywordsContextType | undefined>(undefined);
 
+const SESSION_STORAGE_KEY = 'session-keywords';
+
 export const KeywordsProvider = ({ children }: { children: ReactNode }) => {
-  const [keywords, setKeywords] = useState<Keyword[]>([]);
+  const [keywords, setKeywordsState] = useState<Keyword[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch standard keywords from database on mount
+  // Fetch standard keywords from database
   const fetchStandardKeywords = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -33,28 +35,51 @@ export const KeywordsProvider = ({ children }: { children: ReactNode }) => {
       .order('keyword', { ascending: true });
 
     if (!error && data) {
-      setKeywords(data as Keyword[]);
+      const keywordsData = data as Keyword[];
+      setKeywordsState(keywordsData);
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(keywordsData));
     }
     setLoading(false);
   };
 
+  // Initialize keywords from sessionStorage or database
   useEffect(() => {
-    fetchStandardKeywords();
+    const storedKeywords = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (storedKeywords) {
+      try {
+        setKeywordsState(JSON.parse(storedKeywords));
+        setLoading(false);
+      } catch (e) {
+        fetchStandardKeywords();
+      }
+    } else {
+      fetchStandardKeywords();
+    }
   }, []);
+
+  const setKeywords = (newKeywords: Keyword[]) => {
+    setKeywordsState(newKeywords);
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newKeywords));
+  };
 
   const addKeyword = (newKeyword: Omit<Keyword, 'id'>) => {
     const keyword: Keyword = {
       ...newKeyword,
-      id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID for session
+      id: `temp-${Date.now()}-${Math.random()}`,
     };
-    setKeywords(prev => [...prev, keyword]);
+    const updated = [...keywords, keyword];
+    setKeywordsState(updated);
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
   };
 
   const deleteKeyword = (id: string) => {
-    setKeywords(prev => prev.filter(k => k.id !== id));
+    const updated = keywords.filter(k => k.id !== id);
+    setKeywordsState(updated);
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
   };
 
   const resetToStandard = async () => {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
     await fetchStandardKeywords();
   };
 
