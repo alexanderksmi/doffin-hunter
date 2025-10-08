@@ -91,6 +91,7 @@ export const TendersTable = () => {
       .from('tenders')
       .select('*');
 
+    // Don't apply deadline sorting in query - we'll do it manually after
     switch (sortBy) {
       case 'published-new':
         query = query.order('published_date', { ascending: false });
@@ -98,14 +99,8 @@ export const TendersTable = () => {
       case 'published-old':
         query = query.order('published_date', { ascending: true });
         break;
-      case 'deadline-new':
-        query = query.order('deadline', { ascending: false });
-        break;
-      case 'deadline-old':
-        query = query.order('deadline', { ascending: true });
-        break;
       default:
-        // For score sorting, we'll sort after recalculation
+        // For score and deadline sorting, we'll sort after recalculation
         break;
     }
 
@@ -136,9 +131,17 @@ export const TendersTable = () => {
           }
         });
 
-      // Sort by score if needed
+      // Sort by score or deadline if needed
       if (sortBy === 'score') {
         recalculatedTenders.sort((a, b) => b.score - a.score);
+      } else if (sortBy === 'deadline-new' || sortBy === 'deadline-old') {
+        recalculatedTenders.sort((a, b) => {
+          // Treat null/undefined deadlines as far future dates
+          const dateA = a.deadline ? new Date(a.deadline).getTime() : Number.MAX_SAFE_INTEGER;
+          const dateB = b.deadline ? new Date(b.deadline).getTime() : Number.MAX_SAFE_INTEGER;
+          
+          return sortBy === 'deadline-new' ? dateB - dateA : dateA - dateB;
+        });
       }
 
       setTenders(recalculatedTenders);
