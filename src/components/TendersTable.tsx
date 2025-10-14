@@ -87,9 +87,11 @@ export const TendersTable = () => {
     setLoading(true);
     
     // Fetch all tenders without score filter initially
+    // Filter out expired tenders (deadline must be in the future)
     let query = supabase
       .from('tenders')
-      .select('*');
+      .select('*')
+      .or('deadline.is.null,deadline.gte.' + new Date().toISOString());
 
     // Don't apply deadline sorting in query - we'll do it manually after
     switch (sortBy) {
