@@ -54,7 +54,7 @@ export type Database = {
           matched_keywords: Json | null
           published_date: string | null
           score: number | null
-          search_vector: unknown | null
+          search_vector: unknown
           title: string
         }
         Insert: {
@@ -69,7 +69,7 @@ export type Database = {
           matched_keywords?: Json | null
           published_date?: string | null
           score?: number | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           title: string
         }
         Update: {
@@ -84,7 +84,7 @@ export type Database = {
           matched_keywords?: Json | null
           published_date?: string | null
           score?: number | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           title?: string
         }
         Relationships: []
@@ -94,38 +94,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
-        Returns: undefined
-      }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
-      }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
-      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       keyword_category: "positive" | "negative"

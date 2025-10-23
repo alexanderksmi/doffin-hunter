@@ -146,7 +146,18 @@ serve(async (req) => {
         }
       }
 
-      // New scoring rules:
+      // REQUIRED: Tender MUST contain at least one of these keywords
+      const requiredKeywords = ['arkiv', 'arkivkjerne', 'eiendomsarkiv'];
+      const hasRequiredKeyword = matchedKeywords.some(mk => 
+        requiredKeywords.includes(mk.keyword.toLowerCase())
+      );
+
+      if (!hasRequiredKeyword) {
+        console.log(`Tender ${doffinId} - ${matchedKeywords.length} matches but missing required keywords (arkiv/arkivkjerne/eiendomsarkiv): SKIPPING`);
+        continue;
+      }
+
+      // New scoring rules (only apply if required keyword is present):
       // 1. 1 keyword match: Save only if weight >= 3
       // 2. 2 keyword matches: Save if totalScore >= 4
       // 3. 3+ keyword matches: Always save
