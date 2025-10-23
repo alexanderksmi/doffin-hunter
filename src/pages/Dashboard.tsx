@@ -34,10 +34,8 @@ const Dashboard = () => {
 
       toast({
         title: "Suksess",
-        description: "Anbud hentet med dine nøkkelord",
+        description: "Nye anbud blir lagt til automatisk",
       });
-      
-      window.location.reload();
     } catch (error: any) {
       toast({
         title: "Feil",

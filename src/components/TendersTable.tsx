@@ -58,6 +58,29 @@ export const TendersTable = () => {
     }
   }, [sortBy, minScore, keywords, keywordsLoading]);
 
+  // Realtime subscription for automatic updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('tenders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tenders'
+        },
+        () => {
+          console.log('Tender change detected, refreshing...');
+          fetchTenders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [sortBy, minScore, keywords, keywordsLoading]);
+
   const recalculateTenderScore = (tender: any): Tender => {
     const searchText = `${tender.title} ${tender.body}`.toLowerCase();
     
