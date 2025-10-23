@@ -181,6 +181,12 @@ export const TendersTable = () => {
     const hasArkivKeyword = tender.matched_keywords?.some(kw => kw.keyword.toLowerCase() === 'arkiv');
     return hasArkivKeyword;
   };
+  
+  const isGreenScore = (tender: Tender) => {
+    if (requireArchiveKeywords) return false;
+    const hasArkivKeyword = tender.matched_keywords?.some(kw => kw.keyword.toLowerCase() === 'arkiv');
+    return !hasArkivKeyword;
+  };
   return <TooltipProvider>
       <div className="space-y-4">
       <div className="flex gap-4 items-center flex-wrap">
@@ -286,7 +292,9 @@ export const TendersTable = () => {
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                    {isTopScore(tender) ? <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-blue-500">
+                    {isTopScore(tender) ? <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground border-primary">
+                        {tender.score}
+                      </Badge> : isGreenScore(tender) ? <Badge className="bg-success hover:bg-success/90 text-success-foreground border-success">
                         {tender.score}
                       </Badge> : <Badge variant={getScoreBadgeVariant(tender.score)}>
                         {tender.score}
