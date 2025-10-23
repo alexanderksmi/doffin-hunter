@@ -3,35 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useKeywords } from "@/contexts/KeywordsContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ExternalLink } from "lucide-react";
-
 interface MatchedKeyword {
   keyword: string;
   weight: number;
   category: string;
 }
-
 interface Tender {
   id: string;
   doffin_id: string;
@@ -45,9 +25,11 @@ interface Tender {
   published_date: string;
   doffin_url: string;
 }
-
 export const TendersTable = () => {
-  const { keywords, loading: keywordsLoading } = useKeywords();
+  const {
+    keywords,
+    loading: keywordsLoading
+  } = useKeywords();
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"score" | "published-new" | "published-old" | "deadline-new" | "deadline-old">("score");
@@ -61,7 +43,6 @@ export const TendersTable = () => {
   useEffect(() => {
     sessionStorage.setItem("require-archive-keywords", String(requireArchiveKeywords));
   }, [requireArchiveKeywords]);
-
   useEffect(() => {
     if (!keywordsLoading) {
       fetchTenders();
@@ -70,33 +51,22 @@ export const TendersTable = () => {
 
   // Realtime subscription for automatic updates
   useEffect(() => {
-    const channel = supabase
-      .channel('tenders-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tenders'
-        },
-        () => {
-          console.log('Tender change detected, refreshing...');
-          fetchTenders();
-        }
-      )
-      .subscribe();
-
+    const channel = supabase.channel('tenders-changes').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'tenders'
+    }, () => {
+      console.log('Tender change detected, refreshing...');
+      fetchTenders();
+    }).subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [sortBy, minScore, keywords, keywordsLoading, requireArchiveKeywords]);
-
   const recalculateTenderScore = (tender: any): Tender => {
     const searchText = `${tender.title} ${tender.body}`.toLowerCase();
-    
     let score = 0;
     const matchedKeywords: MatchedKeyword[] = [];
-
     for (const kw of keywords) {
       if (searchText.includes(kw.keyword.toLowerCase())) {
         const weight = kw.category === 'negative' ? -kw.weight : kw.weight;
@@ -108,72 +78,66 @@ export const TendersTable = () => {
         });
       }
     }
-
     return {
       ...tender,
       score,
       matched_keywords: matchedKeywords
     };
   };
-
   const fetchTenders = async () => {
     setLoading(true);
-    
+
     // Fetch all tenders without score filter initially
     // Filter out expired tenders (deadline must be in the future)
-    let query = supabase
-      .from('tenders')
-      .select('*')
-      .or('deadline.is.null,deadline.gte.' + new Date().toISOString());
+    let query = supabase.from('tenders').select('*').or('deadline.is.null,deadline.gte.' + new Date().toISOString());
 
     // Don't apply deadline sorting in query - we'll do it manually after
     switch (sortBy) {
       case 'published-new':
-        query = query.order('published_date', { ascending: false });
+        query = query.order('published_date', {
+          ascending: false
+        });
         break;
       case 'published-old':
-        query = query.order('published_date', { ascending: true });
+        query = query.order('published_date', {
+          ascending: true
+        });
         break;
       default:
         // For score and deadline sorting, we'll sort after recalculation
         break;
     }
-
-    const { data, error } = await query;
-
+    const {
+      data,
+      error
+    } = await query;
     if (error) {
       console.error('Error fetching tenders:', error);
     } else {
       // Recalculate scores based on session keywords
-      const recalculatedTenders = (data || [])
-        .map(recalculateTenderScore)
-        .filter(tender => {
-          // Check if archive keywords are required
-          if (requireArchiveKeywords) {
-            const requiredKeywords = ['arkiv', 'arkivkjerne', 'eiendomsarkiv'];
-            const hasRequiredKeyword = tender.matched_keywords?.some(
-              kw => requiredKeywords.includes(kw.keyword.toLowerCase())
-            );
-            if (!hasRequiredKeyword) return false;
-          }
-          
-          // Apply new scoring rules:
-          // 1. 1 keyword match: Only show if weight >= 3
-          // 2. 2 keyword matches: Show if totalScore >= 4
-          // 3. 3+ keyword matches: Always show
-          const numMatches = tender.matched_keywords.length;
-          
-          if (numMatches === 0) return false;
-          
-          if (numMatches === 1) {
-            return tender.matched_keywords[0].weight >= 3 && tender.score >= parseInt(minScore);
-          } else if (numMatches === 2) {
-            return tender.score >= 4 && tender.score >= parseInt(minScore);
-          } else {
-            // 3+ matches: always show if meets minScore
-            return tender.score >= parseInt(minScore);
-          }
-        });
+      const recalculatedTenders = (data || []).map(recalculateTenderScore).filter(tender => {
+        // Check if archive keywords are required
+        if (requireArchiveKeywords) {
+          const requiredKeywords = ['arkiv', 'arkivkjerne', 'eiendomsarkiv'];
+          const hasRequiredKeyword = tender.matched_keywords?.some(kw => requiredKeywords.includes(kw.keyword.toLowerCase()));
+          if (!hasRequiredKeyword) return false;
+        }
+
+        // Apply new scoring rules:
+        // 1. 1 keyword match: Only show if weight >= 3
+        // 2. 2 keyword matches: Show if totalScore >= 4
+        // 3. 3+ keyword matches: Always show
+        const numMatches = tender.matched_keywords.length;
+        if (numMatches === 0) return false;
+        if (numMatches === 1) {
+          return tender.matched_keywords[0].weight >= 3 && tender.score >= parseInt(minScore);
+        } else if (numMatches === 2) {
+          return tender.score >= 4 && tender.score >= parseInt(minScore);
+        } else {
+          // 3+ matches: always show if meets minScore
+          return tender.score >= parseInt(minScore);
+        }
+      });
 
       // Sort by score or deadline if needed
       if (sortBy === 'score') {
@@ -194,40 +158,30 @@ export const TendersTable = () => {
           // Treat null/undefined deadlines as far future dates
           const dateA = a.deadline ? new Date(a.deadline).getTime() : Number.MAX_SAFE_INTEGER;
           const dateB = b.deadline ? new Date(b.deadline).getTime() : Number.MAX_SAFE_INTEGER;
-          
           return sortBy === 'deadline-new' ? dateB - dateA : dateA - dateB;
         });
       }
-
       setTenders(recalculatedTenders);
     }
-    
     setLoading(false);
   };
-
   const getScoreBadgeVariant = (score: number): "default" | "secondary" | "destructive" => {
     if (score >= 3) return "secondary";
     return "destructive";
   };
-
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('nb-NO', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
+      day: 'numeric'
     });
   };
-
   const isTopScore = (tender: Tender) => {
-    const hasArkivKeyword = tender.matched_keywords?.some(
-      kw => kw.keyword.toLowerCase() === 'arkiv'
-    );
+    const hasArkivKeyword = tender.matched_keywords?.some(kw => kw.keyword.toLowerCase() === 'arkiv');
     return hasArkivKeyword;
   };
-
-  return (
-    <TooltipProvider>
+  return <TooltipProvider>
       <div className="space-y-4">
       <div className="flex gap-4 items-center flex-wrap">
         <div className="flex items-center gap-2">
@@ -261,19 +215,11 @@ export const TendersTable = () => {
           </Select>
         </div>
 
-        <Button 
-          variant={requireArchiveKeywords ? "default" : "outline"}
-          onClick={() => setRequireArchiveKeywords(!requireArchiveKeywords)}
-          className="gap-2"
-        >
+        <Button variant={requireArchiveKeywords ? "default" : "outline"} onClick={() => setRequireArchiveKeywords(!requireArchiveKeywords)} className="gap-2">
           {requireArchiveKeywords ? "Kun Arkiv" : "Alle Anbud"}
         </Button>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-          <span>=</span>
-          <span>Nevner Arkiv</span>
-        </div>
+        
 
         <div className="ml-auto text-sm text-muted-foreground">
           {tenders.length} tenders found
@@ -295,30 +241,17 @@ export const TendersTable = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow>
+            {loading ? <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
                   Loading tenders...
                 </TableCell>
-              </TableRow>
-            ) : tenders.length === 0 ? (
-              <TableRow>
+              </TableRow> : tenders.length === 0 ? <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No tenders found. Try adjusting the filters or fetch new tenders.
                 </TableCell>
-              </TableRow>
-            ) : (
-              tenders.map((tender) => (
-                <TableRow 
-                  key={tender.id}
-                >
+              </TableRow> : tenders.map(tender => <TableRow key={tender.id}>
                   <TableCell>
-                    <a
-                      href={tender.doffin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center text-primary hover:text-primary/80"
-                    >
+                    <a href={tender.doffin_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center text-primary hover:text-primary/80">
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   </TableCell>
@@ -343,15 +276,11 @@ export const TendersTable = () => {
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                    {isTopScore(tender) ? (
-                      <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-blue-500">
+                    {isTopScore(tender) ? <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-blue-500">
                         {tender.score}
-                      </Badge>
-                    ) : (
-                      <Badge variant={getScoreBadgeVariant(tender.score)}>
+                      </Badge> : <Badge variant={getScoreBadgeVariant(tender.score)}>
                         {tender.score}
-                      </Badge>
-                    )}
+                      </Badge>}
                   </TableCell>
                   <TableCell className="text-sm">
                     {formatDate(tender.deadline)}
@@ -361,38 +290,25 @@ export const TendersTable = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {tender.matched_keywords?.sort((a, b) => b.weight - a.weight).map((kw, idx) => (
-                        <Badge
-                          key={idx}
-                          variant={kw.category === 'positive' ? 'default' : 'destructive'}
-                          className="text-xs"
-                        >
+                      {tender.matched_keywords?.sort((a, b) => b.weight - a.weight).map((kw, idx) => <Badge key={idx} variant={kw.category === 'positive' ? 'default' : 'destructive'} className="text-xs">
                           {kw.keyword}
-                        </Badge>
-                      ))}
+                        </Badge>)}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {tender.cpv_codes?.slice(0, 2).map((code, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
+                      {tender.cpv_codes?.slice(0, 2).map((code, idx) => <Badge key={idx} variant="outline" className="text-xs">
                           {code.slice(0, 8)}
-                        </Badge>
-                      ))}
-                      {tender.cpv_codes?.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
+                        </Badge>)}
+                      {tender.cpv_codes?.length > 2 && <Badge variant="outline" className="text-xs">
                           +{tender.cpv_codes.length - 2}
-                        </Badge>
-                      )}
+                        </Badge>}
                     </div>
                   </TableCell>
-                </TableRow>
-              ))
-            )}
+                </TableRow>)}
           </TableBody>
         </Table>
       </div>
     </div>
-    </TooltipProvider>
-  );
+    </TooltipProvider>;
 };
