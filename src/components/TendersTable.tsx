@@ -215,14 +215,24 @@ export const TendersTable = () => {
           </Select>
         </div>
 
-        <Button variant={requireArchiveKeywords ? "default" : "outline"} onClick={() => setRequireArchiveKeywords(!requireArchiveKeywords)} className="gap-2">
-          {requireArchiveKeywords ? "Kun Arkiv" : "Alle Anbud"}
-        </Button>
-
-        
-
-        <div className="ml-auto text-sm text-muted-foreground">
-          {tenders.length} tenders found
+        <div className="ml-auto flex items-center gap-2">
+          <Button 
+            onClick={() => setRequireArchiveKeywords(false)}
+            className={!requireArchiveKeywords ? "bg-success hover:bg-success/90 text-success-foreground" : ""}
+            variant={!requireArchiveKeywords ? "default" : "outline"}
+          >
+            Alle Anbud
+          </Button>
+          <Button 
+            onClick={() => setRequireArchiveKeywords(true)}
+            className={requireArchiveKeywords ? "bg-primary hover:bg-primary/90 text-primary-foreground" : ""}
+            variant={requireArchiveKeywords ? "default" : "outline"}
+          >
+            Kun Arkiv
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            {tenders.length} tenders found
+          </div>
         </div>
       </div>
 
