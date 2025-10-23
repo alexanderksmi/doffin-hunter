@@ -18,6 +18,28 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
+  // Hjelpefunksjon for å hente anbud fra API
+  const fetchTendersFromAPI = async () => {
+    const { error } = await supabase.functions.invoke('fetch-doffin-tenders', {
+      body: { keywords }
+    });
+    if (error) throw error;
+  };
+
+  // Auto-fetch ved første lasting (bakgrunn, ingen toast)
+  useEffect(() => {
+    const autoFetch = async () => {
+      try {
+        await fetchTendersFromAPI();
+      } catch (error) {
+        console.error('Auto-fetch error:', error);
+        // Ikke vis feilmelding til bruker ved auto-fetch
+      }
+    };
+    
+    autoFetch();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleManualFetch = async () => {
     try {
       toast({
@@ -25,12 +47,7 @@ const Dashboard = () => {
         description: "Dette kan ta noen sekunder",
       });
 
-      // Send session keywords to edge function
-      const { error } = await supabase.functions.invoke('fetch-doffin-tenders', {
-        body: { keywords }
-      });
-      
-      if (error) throw error;
+      await fetchTendersFromAPI();
 
       toast({
         title: "Suksess",
