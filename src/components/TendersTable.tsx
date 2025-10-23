@@ -53,13 +53,13 @@ export const TendersTable = () => {
   const [sortBy, setSortBy] = useState<"score" | "published-new" | "published-old" | "deadline-new" | "deadline-old">("score");
   const [minScore, setMinScore] = useState<string>("3");
   const [requireArchiveKeywords, setRequireArchiveKeywords] = useState<boolean>(() => {
-    const saved = sessionStorage.getItem("show-all-tenders");
-    return saved ? saved === "false" : true;
+    const saved = sessionStorage.getItem("require-archive-keywords");
+    return saved ? saved === "true" : true;
   });
 
   // Lagre visningsvalg i sessionStorage når det endres
   useEffect(() => {
-    sessionStorage.setItem("show-all-tenders", String(requireArchiveKeywords));
+    sessionStorage.setItem("require-archive-keywords", String(requireArchiveKeywords));
   }, [requireArchiveKeywords]);
 
   useEffect(() => {
