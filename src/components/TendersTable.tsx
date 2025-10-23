@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useKeywords } from "@/contexts/KeywordsContext";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -51,12 +52,13 @@ export const TendersTable = () => {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"score" | "published-new" | "published-old" | "deadline-new" | "deadline-old">("score");
   const [minScore, setMinScore] = useState<string>("1");
+  const [requireArchiveKeywords, setRequireArchiveKeywords] = useState<boolean>(true);
 
   useEffect(() => {
     if (!keywordsLoading) {
       fetchTenders();
     }
-  }, [sortBy, minScore, keywords, keywordsLoading]);
+  }, [sortBy, minScore, keywords, keywordsLoading, requireArchiveKeywords]);
 
   // Realtime subscription for automatic updates
   useEffect(() => {
@@ -79,7 +81,7 @@ export const TendersTable = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [sortBy, minScore, keywords, keywordsLoading]);
+  }, [sortBy, minScore, keywords, keywordsLoading, requireArchiveKeywords]);
 
   const recalculateTenderScore = (tender: any): Tender => {
     const searchText = `${tender.title} ${tender.body}`.toLowerCase();
@@ -138,6 +140,15 @@ export const TendersTable = () => {
       const recalculatedTenders = (data || [])
         .map(recalculateTenderScore)
         .filter(tender => {
+          // Check if archive keywords are required
+          if (requireArchiveKeywords) {
+            const requiredKeywords = ['arkiv', 'arkivkjerne', 'eiendomsarkiv'];
+            const hasRequiredKeyword = tender.matched_keywords?.some(
+              kw => requiredKeywords.includes(kw.keyword.toLowerCase())
+            );
+            if (!hasRequiredKeyword) return false;
+          }
+          
           // Apply new scoring rules:
           // 1. 1 keyword match: Only show if weight >= 3
           // 2. 2 keyword matches: Show if totalScore >= 4
@@ -210,7 +221,7 @@ export const TendersTable = () => {
   return (
     <TooltipProvider>
       <div className="space-y-4">
-      <div className="flex gap-4 items-center">
+      <div className="flex gap-4 items-center flex-wrap">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">Sort by:</label>
           <Select value={sortBy} onValueChange={(v: "score" | "published-new" | "published-old" | "deadline-new" | "deadline-old") => setSortBy(v)}>
@@ -243,6 +254,14 @@ export const TendersTable = () => {
             </SelectContent>
           </Select>
         </div>
+
+        <Button 
+          variant={requireArchiveKeywords ? "default" : "outline"}
+          onClick={() => setRequireArchiveKeywords(!requireArchiveKeywords)}
+          className="gap-2"
+        >
+          {requireArchiveKeywords ? "Kun Arkiv" : "Alle Anbud"}
+        </Button>
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="w-3 h-3 rounded-full bg-blue-500"></div>
