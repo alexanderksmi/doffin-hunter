@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, X, Edit2, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 type Partner = {
   name: string;
@@ -19,6 +20,13 @@ type Suggestions = {
   supportKeywords: { keyword: string; weight: number }[];
   negativeKeywords: { keyword: string; weight: number }[];
   cpvCodes: { code: string; weight: number }[];
+};
+
+type ProfileWithSuggestions = {
+  profileName: string;
+  profileId?: string;
+  isOwnProfile: boolean;
+  suggestions: Suggestions;
 };
 
 const Onboarding = () => {
@@ -37,9 +45,10 @@ const Onboarding = () => {
   const [newPartnerName, setNewPartnerName] = useState("");
   const [newPartnerDomain, setNewPartnerDomain] = useState("");
 
-  // Step 3: AI suggestions
-  const [companySuggestions, setCompanySuggestions] = useState<Suggestions | null>(null);
-  const [partnerSuggestions, setPartnerSuggestions] = useState<Record<string, Suggestions>>({});
+  // Step 3 & 4: AI suggestions and editing
+  const [allProfiles, setAllProfiles] = useState<ProfileWithSuggestions[]>([]);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState<string | null>(null);
 
   const addPartner = () => {
     if (newPartnerName && newPartnerDomain) {
@@ -80,6 +89,7 @@ const Onboarding = () => {
         .single();
 
       if (orgError) throw orgError;
+      setOrganizationId(org.id);
 
       // Create user role
       const { error: roleError } = await supabase
@@ -105,7 +115,8 @@ const Onboarding = () => {
 
       if (profileError) throw profileError;
 
-      // Save partners
+      // Save partner profiles
+      const partnerProfiles = [];
       for (const partner of partners) {
         const { data: partnerData, error: partnerError } = await supabase
           .from("partners")
@@ -119,14 +130,19 @@ const Onboarding = () => {
 
         if (partnerError) throw partnerError;
 
-        await supabase
+        const { data: partnerProfile, error: partnerProfileError } = await supabase
           .from("company_profiles")
           .insert({
             organization_id: org.id,
             profile_name: partner.name,
             is_own_profile: false,
             partner_id: partnerData.id,
-          });
+          })
+          .select()
+          .single();
+
+        if (partnerProfileError) throw partnerProfileError;
+        partnerProfiles.push(partnerProfile);
       }
 
       setStep(3);
@@ -145,20 +161,41 @@ const Onboarding = () => {
   const generateSuggestions = async () => {
     setLoading(true);
     try {
-      // Generate suggestions for own company
-      const { data: companyData, error: companyError } = await supabase.functions.invoke(
-        "generate-profile-suggestions",
-        {
-          body: { companyName, domain, industry },
-        }
-      );
+      // Get all profiles from database
+      const { data: profiles, error: profilesError } = await supabase
+        .from("company_profiles")
+        .select("*")
+        .eq("organization_id", organizationId);
 
-      if (companyError) throw companyError;
-      setCompanySuggestions(companyData.suggestions);
+      if (profilesError) throw profilesError;
+
+      const profilesWithSuggestions: ProfileWithSuggestions[] = [];
+
+      // Generate suggestions for own company
+      const ownProfile = profiles.find((p) => p.is_own_profile);
+      if (ownProfile) {
+        const { data: companyData, error: companyError } = await supabase.functions.invoke(
+          "generate-profile-suggestions",
+          {
+            body: { companyName, domain, industry },
+          }
+        );
+
+        if (companyError) throw companyError;
+        profilesWithSuggestions.push({
+          profileName: companyName,
+          profileId: ownProfile.id,
+          isOwnProfile: true,
+          suggestions: companyData.suggestions,
+        });
+      }
 
       // Generate suggestions for partners
-      const partnerSuggestionsTemp: Record<string, Suggestions> = {};
-      for (const partner of partners) {
+      const partnerProfiles = profiles.filter((p) => !p.is_own_profile);
+      for (const profile of partnerProfiles) {
+        const partner = partners.find((p) => p.name === profile.profile_name);
+        if (!partner) continue;
+
         const { data: partnerData, error: partnerError } = await supabase.functions.invoke(
           "generate-profile-suggestions",
           {
@@ -175,14 +212,20 @@ const Onboarding = () => {
           continue;
         }
 
-        partnerSuggestionsTemp[partner.name] = partnerData.suggestions;
+        profilesWithSuggestions.push({
+          profileName: partner.name,
+          profileId: profile.id,
+          isOwnProfile: false,
+          suggestions: partnerData.suggestions,
+        });
       }
 
-      setPartnerSuggestions(partnerSuggestionsTemp);
+      setAllProfiles(profilesWithSuggestions);
+      setStep(4);
 
       toast({
         title: "AI-forslag generert",
-        description: "Forslagene er klare for gjennomgang",
+        description: "Nå kan du godkjenne eller endre forslagene",
       });
     } catch (error) {
       console.error("Error generating suggestions:", error);
@@ -196,36 +239,147 @@ const Onboarding = () => {
     }
   };
 
-  const formatSuggestions = (suggestions: Suggestions) => {
-    let text = "";
-    
-    if (suggestions.minimumRequirements?.length > 0) {
-      text += `Minimumskrav: ${suggestions.minimumRequirements.join(", ")}\n\n`;
+  const updateProfileSuggestion = (
+    profileName: string,
+    field: keyof Suggestions,
+    value: any
+  ) => {
+    setAllProfiles((prev) =>
+      prev.map((p) =>
+        p.profileName === profileName
+          ? { ...p, suggestions: { ...p.suggestions, [field]: value } }
+          : p
+      )
+    );
+  };
+
+  const removeKeyword = (profileName: string, field: keyof Suggestions, index: number) => {
+    const profile = allProfiles.find((p) => p.profileName === profileName);
+    if (!profile) return;
+
+    const updated = [...(profile.suggestions[field] as any[])];
+    updated.splice(index, 1);
+    updateProfileSuggestion(profileName, field, updated);
+  };
+
+  const addKeyword = (profileName: string, field: keyof Suggestions, value: any) => {
+    const profile = allProfiles.find((p) => p.profileName === profileName);
+    if (!profile) return;
+
+    const updated = [...(profile.suggestions[field] as any[]), value];
+    updateProfileSuggestion(profileName, field, updated);
+  };
+
+  const finalizeOnboarding = async () => {
+    setLoading(true);
+    try {
+      // Save all keywords and CPV codes for each profile
+      for (const profile of allProfiles) {
+        if (!profile.profileId) continue;
+
+        // Save minimum requirements
+        for (const keyword of profile.suggestions.minimumRequirements) {
+          await supabase.from("minimum_requirements").insert({
+            profile_id: profile.profileId,
+            keyword,
+          });
+        }
+
+        // Save support keywords
+        for (const kw of profile.suggestions.supportKeywords) {
+          await supabase.from("support_keywords").insert({
+            profile_id: profile.profileId,
+            keyword: kw.keyword,
+            weight: kw.weight,
+          });
+        }
+
+        // Save negative keywords
+        for (const kw of profile.suggestions.negativeKeywords) {
+          await supabase.from("negative_keywords").insert({
+            profile_id: profile.profileId,
+            keyword: kw.keyword,
+            weight: kw.weight,
+          });
+        }
+
+        // Save CPV codes
+        for (const cpv of profile.suggestions.cpvCodes) {
+          await supabase.from("cpv_codes").insert({
+            profile_id: profile.profileId,
+            cpv_code: cpv.code,
+            weight: cpv.weight,
+          });
+        }
+      }
+
+      // Generate partner graph combinations
+      const ownProfile = allProfiles.find((p) => p.isOwnProfile);
+      const partnerProfiles = allProfiles.filter((p) => !p.isOwnProfile);
+
+      if (ownProfile?.profileId) {
+        // Solo combination
+        await supabase.from("partner_graph").insert({
+          organization_id: organizationId,
+          combination_type: "solo",
+          lead_profile_id: ownProfile.profileId,
+        });
+
+        // Lead + Partner combinations
+        for (const partner of partnerProfiles) {
+          if (!partner.profileId) continue;
+
+          await supabase.from("partner_graph").insert({
+            organization_id: organizationId,
+            combination_type: "lead_partner",
+            lead_profile_id: ownProfile.profileId,
+            partner_profile_id: partner.profileId,
+          });
+
+          // Partner-led combinations
+          await supabase.from("partner_graph").insert({
+            organization_id: organizationId,
+            combination_type: "partner_led",
+            lead_profile_id: partner.profileId,
+            partner_profile_id: ownProfile.profileId,
+          });
+        }
+      }
+
+      toast({
+        title: "Oppsettet er fullført!",
+        description: "Tar deg til dashboardet...",
+      });
+
+      navigate("/");
+    } catch (error) {
+      console.error("Error finalizing onboarding:", error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke fullføre oppsettet",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    
-    if (suggestions.supportKeywords?.length > 0) {
-      text += `Støtteord: ${suggestions.supportKeywords.map(k => `${k.keyword} (vekt: ${k.weight})`).join(", ")}\n\n`;
-    }
-    
-    if (suggestions.negativeKeywords?.length > 0) {
-      text += `Negativord: ${suggestions.negativeKeywords.map(k => `${k.keyword} (vekt: ${k.weight})`).join(", ")}\n\n`;
-    }
-    
-    if (suggestions.cpvCodes?.length > 0) {
-      text += `CPV-koder: ${suggestions.cpvCodes.map(c => `${c.code} (vekt: ${c.weight})`).join(", ")}`;
-    }
-    
-    return text;
   };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-4xl">
         <CardHeader>
           <CardTitle>Velkommen til SjekkAnbud</CardTitle>
           <CardDescription>
-            La oss sette opp systemet for deg - Steg {step} av 3
+            La oss sette opp systemet for deg - Steg {step} av 4
           </CardDescription>
+          {step >= 3 && (
+            <div className="mt-4 p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                <strong>Viktig:</strong> Minimumskrav er harde dørvakter – anbud uten disse blir ikke vist. 
+                Støtteord øker relevans, negativord senker den.
+              </p>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {step === 1 && (
@@ -332,46 +486,184 @@ const Onboarding = () => {
           )}
 
           {step === 3 && (
-            <div className="space-y-4">
-              {!companySuggestions ? (
-                <div className="text-center py-8">
-                  <p className="mb-4 text-muted-foreground">
-                    Klikk under for å generere AI-forslag basert på din bedriftsprofil
-                  </p>
-                  <Button onClick={generateSuggestions} disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Genererer forslag...
-                      </>
-                    ) : (
-                      "Generer AI-forslag"
+            <div className="text-center py-8">
+              <p className="mb-4 text-muted-foreground">
+                Klikk under for å generere AI-forslag basert på din bedriftsprofil
+              </p>
+              <Button onClick={generateSuggestions} disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Genererer forslag...
+                  </>
+                ) : (
+                  "Generer AI-forslag"
+                )}
+              </Button>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-6">
+              {allProfiles.map((profile) => (
+                <div key={profile.profileName} className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">{profile.profileName}</h3>
+                    {profile.isOwnProfile && (
+                      <Badge variant="secondary">Eget selskap</Badge>
                     )}
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg bg-card">
-                    <h3 className="font-semibold mb-2">{companyName}</h3>
-                    <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
-                      {formatSuggestions(companySuggestions)}
-                    </pre>
                   </div>
 
-                  {Object.entries(partnerSuggestions).map(([name, suggestions]) => (
-                    <div key={name} className="p-4 border rounded-lg bg-card">
-                      <h3 className="font-semibold mb-2">{name}</h3>
-                      <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
-                        {formatSuggestions(suggestions)}
-                      </pre>
+                  {/* Minimum Requirements */}
+                  <div>
+                    <Label className="text-sm font-medium">Minimumskrav</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {profile.suggestions.minimumRequirements.map((req, idx) => (
+                        <Badge key={idx} variant="destructive" className="gap-1">
+                          {req}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() =>
+                              removeKeyword(profile.profileName, "minimumRequirements", idx)
+                            }
+                          />
+                        </Badge>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const keyword = prompt("Nytt minimumskrav:");
+                          if (keyword) {
+                            addKeyword(profile.profileName, "minimumRequirements", keyword);
+                          }
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
                     </div>
-                  ))}
+                  </div>
 
-                  <Button onClick={() => navigate("/")} className="w-full">
-                    Fullfør oppsett
-                  </Button>
+                  {/* Support Keywords */}
+                  <div>
+                    <Label className="text-sm font-medium">Støtteord</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {profile.suggestions.supportKeywords.map((kw, idx) => (
+                        <Badge key={idx} variant="default" className="gap-1">
+                          {kw.keyword} ({kw.weight})
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() =>
+                              removeKeyword(profile.profileName, "supportKeywords", idx)
+                            }
+                          />
+                        </Badge>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const keyword = prompt("Nytt støtteord:");
+                          const weight = prompt("Vekt (1-3):");
+                          if (keyword && weight) {
+                            addKeyword(profile.profileName, "supportKeywords", {
+                              keyword,
+                              weight: parseInt(weight),
+                            });
+                          }
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Negative Keywords */}
+                  <div>
+                    <Label className="text-sm font-medium">Negativord</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {profile.suggestions.negativeKeywords.map((kw, idx) => (
+                        <Badge key={idx} variant="secondary" className="gap-1">
+                          {kw.keyword} ({kw.weight})
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() =>
+                              removeKeyword(profile.profileName, "negativeKeywords", idx)
+                            }
+                          />
+                        </Badge>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const keyword = prompt("Nytt negativord:");
+                          const weight = prompt("Vekt (-1 til -3):");
+                          if (keyword && weight) {
+                            addKeyword(profile.profileName, "negativeKeywords", {
+                              keyword,
+                              weight: parseInt(weight),
+                            });
+                          }
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* CPV Codes */}
+                  <div>
+                    <Label className="text-sm font-medium">CPV-koder</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {profile.suggestions.cpvCodes.map((cpv, idx) => (
+                        <Badge key={idx} variant="outline" className="gap-1">
+                          {cpv.code} ({cpv.weight})
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => removeKeyword(profile.profileName, "cpvCodes", idx)}
+                          />
+                        </Badge>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const code = prompt("Ny CPV-kode:");
+                          const weight = prompt("Vekt (1-3):");
+                          if (code && weight) {
+                            addKeyword(profile.profileName, "cpvCodes", {
+                              code,
+                              weight: parseInt(weight),
+                            });
+                          }
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              )}
+              ))}
+
+              <div className="flex gap-2">
+                <Button onClick={() => setStep(3)} variant="outline">
+                  Tilbake
+                </Button>
+                <Button onClick={finalizeOnboarding} disabled={loading} className="flex-1">
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Lagrer...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Godkjenn og bygg dashboard
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
