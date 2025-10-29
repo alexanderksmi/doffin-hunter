@@ -20,17 +20,19 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const prompt = `Du er en ekspert på offentlige anbud i Norge. Basert på følgende selskapsinformasjon, skal du foreslå nøkkelord og kriterier som kan brukes til å filtrere relevante anbud.
+    const prompt = `Du får firmanavn, domene og bransje for ett selskap. Bruk kun offentlig kjent og plausibel informasjon om selskapet og bransjen, og vær konservativ.
 
 Selskap: ${companyName}
 Domene: ${domain}
 Bransje: ${industry}
 
-Vær konservativ - foreslå kun det mest relevante. Oppgi:
-- 2-3 minimumskrav (ord som ALLTID må være med)
-- 3-6 støtteord (positive ord med vekt 1-3)
-- 1-2 negativord (ord som tyder på irrelevante anbud, med negativ vekt)
-- 2-3 CPV-koder (Common Procurement Vocabulary koder)
+Foreslå:
+- 2-3 minimumskrav som må være til stede for at et anbud er relevant for dette selskapet
+- 3-6 støtteord med små heltallsvekter mellom +1 og +3
+- 1-2 negativord med heltallsvekter mellom −1 og −3
+- 2-3 CPV-koder som startpunkter
+
+Ikke spekuler i proprietære detaljer, ikke overfyll med ord, og prioriter presisjon fremfor bredde. Hvis du er usikker, velg færre og mer generelle termer for bransjen. Språket skal være nøkternt, norskt og B2B-vennlig.
 
 Svar BARE med JSON i dette formatet:
 {
@@ -51,7 +53,7 @@ Svar BARE med JSON i dette formatet:
         messages: [
           { 
             role: "system", 
-            content: "Du er en ekspert på norske offentlige anbud og CPV-koder. Du gir konservative, presise forslag."
+            content: "Du er en ekspert på norske offentlige anbud og CPV-koder. Du gir konservative, presise forslag basert kun på offentlig kjent informasjon. Hold deg til maksimalt 2-3 minimumskrav, 3-6 støtteord, 1-2 negativord, og 2-3 CPV-koder. Prioriter kvalitet over kvantitet."
           },
           { role: "user", content: prompt }
         ],
