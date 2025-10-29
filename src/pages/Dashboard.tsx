@@ -5,18 +5,18 @@ import { Button } from "@/components/ui/button";
 import { TendersTable } from "@/components/TendersTable";
 import { useToast } from "@/hooks/use-toast";
 import { useKeywords } from "@/contexts/KeywordsContext";
+import { useOnboardingCheck } from "@/hooks/useOnboardingCheck";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { keywords } = useKeywords();
+  const { loading: onboardingLoading, hasCompletedOnboarding } = useOnboardingCheck();
 
-  useEffect(() => {
-    const isAuthenticated = sessionStorage.getItem("authenticated");
-    if (!isAuthenticated) {
-      navigate("/auth");
-    }
-  }, [navigate]);
+  // Show loading state while checking onboarding
+  if (onboardingLoading || !hasCompletedOnboarding) {
+    return null;
+  }
 
   // Hjelpefunksjon for å hente anbud fra API
   const fetchTendersFromAPI = async () => {
@@ -62,7 +62,8 @@ const Dashboard = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     sessionStorage.removeItem("authenticated");
     sessionStorage.removeItem("session-keywords");
     navigate("/auth");
