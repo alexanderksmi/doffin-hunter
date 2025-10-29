@@ -3,5 +3,8 @@ project_id = "dcebjaaqjsctalpilftu"
 [functions.fetch-doffin-tenders]
 verify_jwt = false
 
+[functions.evaluate-tenders]
+verify_jwt = false
+
 [functions.generate-profile-suggestions]
 verify_jwt = false

@@ -219,6 +219,22 @@ serve(async (req) => {
         .eq('id', syncLogId);
     }
 
+    // Trigger evaluation of all tenders
+    console.log('Triggering tender evaluation...');
+    const evalResponse = await fetch(`${supabaseUrl}/functions/v1/evaluate-tenders`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!evalResponse.ok) {
+      console.error('Evaluation error:', await evalResponse.text());
+    } else {
+      console.log('Evaluation completed successfully');
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 

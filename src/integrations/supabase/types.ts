@@ -296,6 +296,70 @@ export type Database = {
           },
         ]
       }
+      saved_tenders: {
+        Row: {
+          activity_log: Json | null
+          assigned_to: string | null
+          created_at: string | null
+          evaluation_id: string
+          id: string
+          notes: string | null
+          organization_id: string
+          saved_by: string
+          status: string
+          tender_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          activity_log?: Json | null
+          assigned_to?: string | null
+          created_at?: string | null
+          evaluation_id: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          saved_by: string
+          status?: string
+          tender_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          activity_log?: Json | null
+          assigned_to?: string | null
+          created_at?: string | null
+          evaluation_id?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          saved_by?: string
+          status?: string
+          tender_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_tenders_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "tender_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_tenders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_tenders_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
+            referencedRelation: "tenders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_keywords: {
         Row: {
           created_at: string | null
@@ -327,6 +391,114 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_evaluations: {
+        Row: {
+          all_minimum_requirements_met: boolean
+          combination_id: string | null
+          combination_type: string
+          cpv_score: number | null
+          created_at: string | null
+          explanation: string | null
+          id: string
+          lead_profile_id: string | null
+          matched_cpv_codes: Json | null
+          matched_negative_keywords: Json | null
+          matched_support_keywords: Json | null
+          met_minimum_requirements: Json | null
+          missing_minimum_requirements: Json | null
+          negative_score: number | null
+          organization_id: string
+          partner_profile_id: string | null
+          support_score: number | null
+          synergy_bonus: number | null
+          tender_id: string
+          total_score: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          all_minimum_requirements_met?: boolean
+          combination_id?: string | null
+          combination_type: string
+          cpv_score?: number | null
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          lead_profile_id?: string | null
+          matched_cpv_codes?: Json | null
+          matched_negative_keywords?: Json | null
+          matched_support_keywords?: Json | null
+          met_minimum_requirements?: Json | null
+          missing_minimum_requirements?: Json | null
+          negative_score?: number | null
+          organization_id: string
+          partner_profile_id?: string | null
+          support_score?: number | null
+          synergy_bonus?: number | null
+          tender_id: string
+          total_score?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          all_minimum_requirements_met?: boolean
+          combination_id?: string | null
+          combination_type?: string
+          cpv_score?: number | null
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          lead_profile_id?: string | null
+          matched_cpv_codes?: Json | null
+          matched_negative_keywords?: Json | null
+          matched_support_keywords?: Json | null
+          met_minimum_requirements?: Json | null
+          missing_minimum_requirements?: Json | null
+          negative_score?: number | null
+          organization_id?: string
+          partner_profile_id?: string | null
+          support_score?: number | null
+          synergy_bonus?: number | null
+          tender_id?: string
+          total_score?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_evaluations_combination_id_fkey"
+            columns: ["combination_id"]
+            isOneToOne: false
+            referencedRelation: "partner_graph"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_evaluations_lead_profile_id_fkey"
+            columns: ["lead_profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_evaluations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_evaluations_partner_profile_id_fkey"
+            columns: ["partner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_evaluations_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
+            referencedRelation: "tenders"
             referencedColumns: ["id"]
           },
         ]
