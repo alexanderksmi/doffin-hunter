@@ -14,9 +14,7 @@ const Dashboard = () => {
 
   // Hjelpefunksjon for å hente anbud fra API
   const fetchTendersFromAPI = async () => {
-    const { error } = await supabase.functions.invoke('fetch-doffin-tenders', {
-      body: { keywords }
-    });
+    const { error } = await supabase.functions.invoke('fetch-doffin-tenders');
     if (error) throw error;
   };
 
