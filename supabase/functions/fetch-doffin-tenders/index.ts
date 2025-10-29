@@ -14,36 +14,52 @@ const doffinApiKey = Deno.env.get('DOFFIN_API_KEY');
 // CPV codes to filter on
 const TARGET_CPV_CODES = ['48000000', '48311000', '72200000', '72500000', '79995100'];
 
+// Maximum tenders to process per sync
+const MAX_TENDERS_PER_SYNC = 200;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let syncLogId: string | null = null;
+  
   try {
     console.log('Starting Doffin tender fetch...');
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if custom keywords were provided in request body
-    const body = await req.json().catch(() => ({}));
-    let keywords = body.keywords;
-
-    // If no custom keywords provided, fetch from database (standard)
-    if (!keywords || keywords.length === 0) {
-      const { data: dbKeywords, error: keywordsError } = await supabase
-        .from('keywords')
-        .select('keyword, weight, category');
-
-      if (keywordsError) {
-        console.error('Error fetching keywords:', keywordsError);
-        throw keywordsError;
-      }
-      
-      keywords = dbKeywords;
-      console.log(`Using standard keywords from database: ${keywords?.length || 0}`);
+    // Create sync log entry
+    const { data: syncLog, error: syncLogError } = await supabase
+      .from('tender_sync_log')
+      .insert({ status: 'running' })
+      .select()
+      .single();
+    
+    if (syncLogError) {
+      console.error('Error creating sync log:', syncLogError);
     } else {
-      console.log(`Using custom keywords from request: ${keywords.length}`);
+      syncLogId = syncLog.id;
     }
+
+    // Fetch all organizations
+    const { data: organizations, error: orgsError } = await supabase
+      .from('organizations')
+      .select('id');
+    
+    if (orgsError) {
+      throw new Error(`Failed to fetch organizations: ${orgsError.message}`);
+    }
+    
+    if (!organizations || organizations.length === 0) {
+      console.log('No organizations found, skipping sync');
+      return new Response(
+        JSON.stringify({ success: true, message: 'No organizations to sync' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log(`Found ${organizations.length} organizations to sync`);
 
     // Fetch tenders from Doffin Public API v2
     const baseUrl = 'https://api.doffin.no/public/v2/search';
@@ -57,9 +73,9 @@ serve(async (req) => {
       throw new Error('DOFFIN_API_KEY is not configured');
     }
 
-    // Build search parameters
+    // Build search parameters - limit to MAX_TENDERS_PER_SYNC
     const params = new URLSearchParams({
-      numHitsPerPage: '100',
+      numHitsPerPage: String(Math.min(MAX_TENDERS_PER_SYNC, 100)),
       page: '1',
       sortBy: 'PUBLICATION_DATE_DESC'
     });
@@ -99,79 +115,62 @@ serve(async (req) => {
     const notices = doffinData.notices || doffinData.results || doffinData.hits || [];
     console.log(`Fetched ${notices.length} tenders from Doffin`);
 
-    let processedCount = 0;
-    let savedCount = 0;
+    // Limit to MAX_TENDERS_PER_SYNC
+    const limitedNotices = notices.slice(0, MAX_TENDERS_PER_SYNC);
+    console.log(`Processing ${limitedNotices.length} tenders (max ${MAX_TENDERS_PER_SYNC})`);
 
-    for (const tender of notices) {
-      processedCount++;
-      
-      // Log first tender structure for debugging
-      if (processedCount === 1) {
-        console.log('First tender structure:', JSON.stringify(tender, null, 2));
-        console.log('Available fields:', Object.keys(tender));
-      }
+    let totalProcessed = 0;
+    let totalSaved = 0;
 
-      // Check if tender already exists
-      const doffinId = tender.doffinReferenceNumber || tender.noticeId || tender.id;
-      const { data: existingTender } = await supabase
-        .from('tenders')
-        .select('id')
-        .eq('doffin_id', doffinId)
-        .maybeSingle();
+    // Process tenders for each organization
+    for (const org of organizations) {
+      console.log(`Processing tenders for org ${org.id}...`);
+      let orgSavedCount = 0;
 
-      if (existingTender) {
-        continue;
-      }
+      for (const tender of limitedNotices) {
+        totalProcessed++;
+        
+        const doffinId = tender.doffinReferenceNumber || tender.noticeId || tender.id;
+        const title = tender.heading || tender.title || '';
+        const body = tender.description || '';
+        
+        // Check if tender already exists for this organization
+        const { data: existingTender } = await supabase
+          .from('tenders')
+          .select('id, source_updated_at')
+          .eq('doffin_id', doffinId)
+          .eq('org_id', org.id)
+          .maybeSingle();
 
-      // Calculate score based on keywords
-      const title = tender.heading || tender.title || '';
-      const body = tender.description || '';
-      
-      console.log(`Tender ${doffinId} - title: "${title}", body length: ${body.length}`);
-      
-      const searchText = `${title} ${body}`.toLowerCase();
-      
-      let score = 0;
-      const matchedKeywords: Array<{keyword: string, weight: number, category: string}> = [];
+        // Get source update timestamp from Doffin
+        const sourceUpdatedAt = tender.lastUpdated || tender.modifiedDate || tender.publicationDate;
 
-      for (const kw of keywords || []) {
-        if (searchText.includes(kw.keyword.toLowerCase())) {
-          const weight = kw.category === 'negative' ? -kw.weight : kw.weight;
-          score += weight;
-          matchedKeywords.push({
-            keyword: kw.keyword,
-            weight: kw.weight,
-            category: kw.category
-          });
+        // Skip if tender exists and hasn't been updated
+        if (existingTender && sourceUpdatedAt) {
+          const existingTime = new Date(existingTender.source_updated_at).getTime();
+          const sourceTime = new Date(sourceUpdatedAt).getTime();
+          
+          if (sourceTime <= existingTime) {
+            continue; // Skip unchanged tender
+          }
+          
+          console.log(`Tender ${doffinId} updated since last sync, will update`);
         }
-      }
 
-      // New scoring rules:
-      // 1. 1 keyword match: Save only if weight >= 3
-      // 2. 2 keyword matches: Save if totalScore >= 4
-      // 3. 3+ keyword matches: Always save
-      const numMatches = matchedKeywords.length;
-      let shouldSave = false;
+        if (existingTender) {
+          continue; // For now, skip updates - only insert new ones
+        }
 
-      if (numMatches === 1 && matchedKeywords[0].weight >= 3) {
-        shouldSave = true;
-        console.log(`Tender ${doffinId} - 1 match with weight ${matchedKeywords[0].weight} >= 3: SAVING`);
-      } else if (numMatches === 2 && score >= 4) {
-        shouldSave = true;
-        console.log(`Tender ${doffinId} - 2 matches with score ${score} >= 4: SAVING`);
-      } else if (numMatches >= 3) {
-        shouldSave = true;
-        console.log(`Tender ${doffinId} - ${numMatches} matches: SAVING`);
-      } else {
-        console.log(`Tender ${doffinId} - ${numMatches} matches with score ${score}: SKIPPING`);
-      }
-
-      if (shouldSave) {
+        // Extract tender data
         const cpvCodes = tender.cpvCodes || [];
         const client = tender.buyer?.[0]?.name || null;
+        const deadline = tender.deadline || null;
+        const publishedDate = tender.publicationDate || null;
+        const doffinUrl = `https://doffin.no/Notice/Details/${doffinId}`;
         
-        console.log(`Saving tender ${doffinId} - client: "${client}"`);
+        console.log(`Saving tender ${doffinId} for org ${org.id}`);
         
+        // Save tender with empty matched_keywords (scoring happens client-side)
         const { error: insertError } = await supabase
           .from('tenders')
           .insert({
@@ -179,29 +178,53 @@ serve(async (req) => {
             title: title,
             body: body,
             client: client,
-            deadline: tender.deadline,
+            deadline: deadline,
             cpv_codes: cpvCodes,
-            score,
-            matched_keywords: matchedKeywords,
-            published_date: tender.publicationDate,
-            doffin_url: `https://doffin.no/Notice/Details/${doffinId}`
+            score: 0, // Will be calculated client-side
+            matched_keywords: [],
+            published_date: publishedDate,
+            doffin_url: doffinUrl,
+            org_id: org.id,
+            source_updated_at: sourceUpdatedAt || new Date().toISOString()
           });
 
         if (insertError) {
+          // Check if it's a duplicate error (race condition)
+          if (insertError.code === '23505') {
+            console.log(`Tender ${doffinId} already exists for org ${org.id} (race condition)`);
+            continue;
+          }
           console.error('Error inserting tender:', insertError);
         } else {
-          savedCount++;
+          orgSavedCount++;
+          totalSaved++;
         }
       }
+      
+      console.log(`Saved ${orgSavedCount} tenders for org ${org.id}`);
     }
 
-    console.log(`Processed ${processedCount} relevant tenders, saved ${savedCount} with score >= 3`);
+    console.log(`Processed ${totalProcessed} tenders, saved ${totalSaved} total across all orgs`);
+
+    // Update sync log
+    if (syncLogId) {
+      await supabase
+        .from('tender_sync_log')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          fetched_count: limitedNotices.length,
+          saved_count: totalSaved
+        })
+        .eq('id', syncLogId);
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        processed: processedCount, 
-        saved: savedCount 
+        processed: totalProcessed, 
+        saved: totalSaved,
+        organizations: organizations.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -209,6 +232,20 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in fetch-doffin-tenders:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Update sync log with error
+    if (syncLogId) {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      await supabase
+        .from('tender_sync_log')
+        .update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error_message: errorMessage
+        })
+        .eq('id', syncLogId);
+    }
+    
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

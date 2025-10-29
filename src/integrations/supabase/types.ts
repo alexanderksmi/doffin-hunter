@@ -331,6 +331,36 @@ export type Database = {
           },
         ]
       }
+      tender_sync_log: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          fetched_count: number | null
+          id: string
+          saved_count: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          fetched_count?: number | null
+          id?: string
+          saved_count?: number | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          fetched_count?: number | null
+          id?: string
+          saved_count?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       tenders: {
         Row: {
           body: string | null
@@ -342,9 +372,11 @@ export type Database = {
           doffin_url: string | null
           id: string
           matched_keywords: Json | null
+          org_id: string
           published_date: string | null
           score: number | null
           search_vector: unknown
+          source_updated_at: string | null
           title: string
         }
         Insert: {
@@ -357,9 +389,11 @@ export type Database = {
           doffin_url?: string | null
           id?: string
           matched_keywords?: Json | null
+          org_id: string
           published_date?: string | null
           score?: number | null
           search_vector?: unknown
+          source_updated_at?: string | null
           title: string
         }
         Update: {
@@ -372,12 +406,22 @@ export type Database = {
           doffin_url?: string | null
           id?: string
           matched_keywords?: Json | null
+          org_id?: string
           published_date?: string | null
           score?: number | null
           search_vector?: unknown
+          source_updated_at?: string | null
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tenders_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
