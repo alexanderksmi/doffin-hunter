@@ -14,6 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      company_profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_own_profile: boolean | null
+          organization_id: string
+          partner_id: string | null
+          profile_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_own_profile?: boolean | null
+          organization_id: string
+          partner_id?: string | null
+          profile_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_own_profile?: boolean | null
+          organization_id?: string
+          partner_id?: string | null
+          profile_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_profiles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cpv_codes: {
+        Row: {
+          cpv_code: string
+          created_at: string | null
+          id: string
+          profile_id: string
+          updated_at: string | null
+          weight: number
+        }
+        Insert: {
+          cpv_code: string
+          created_at?: string | null
+          id?: string
+          profile_id: string
+          updated_at?: string | null
+          weight?: number
+        }
+        Update: {
+          cpv_code?: string
+          created_at?: string | null
+          id?: string
+          profile_id?: string
+          updated_at?: string | null
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cpv_codes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       keywords: {
         Row: {
           category: Database["public"]["Enums"]["keyword_category"]
@@ -40,6 +120,216 @@ export type Database = {
           weight?: number | null
         }
         Relationships: []
+      }
+      minimum_requirements: {
+        Row: {
+          created_at: string | null
+          id: string
+          keyword: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          keyword: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          keyword?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "minimum_requirements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      negative_keywords: {
+        Row: {
+          created_at: string | null
+          id: string
+          keyword: string
+          profile_id: string
+          updated_at: string | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          keyword: string
+          profile_id: string
+          updated_at?: string | null
+          weight?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          keyword?: string
+          profile_id?: string
+          updated_at?: string | null
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "negative_keywords_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          billing_status: string | null
+          created_at: string | null
+          domain: string
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          billing_status?: string | null
+          created_at?: string | null
+          domain: string
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          billing_status?: string | null
+          created_at?: string | null
+          domain?: string
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      partner_graph: {
+        Row: {
+          combination_type: Database["public"]["Enums"]["partner_combination_type"]
+          created_at: string | null
+          id: string
+          lead_profile_id: string | null
+          organization_id: string
+          partner_profile_id: string | null
+        }
+        Insert: {
+          combination_type: Database["public"]["Enums"]["partner_combination_type"]
+          created_at?: string | null
+          id?: string
+          lead_profile_id?: string | null
+          organization_id: string
+          partner_profile_id?: string | null
+        }
+        Update: {
+          combination_type?: Database["public"]["Enums"]["partner_combination_type"]
+          created_at?: string | null
+          id?: string
+          lead_profile_id?: string | null
+          organization_id?: string
+          partner_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_graph_lead_profile_id_fkey"
+            columns: ["lead_profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_graph_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_graph_partner_profile_id_fkey"
+            columns: ["partner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partners: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          partner_domain: string
+          partner_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          partner_domain: string
+          partner_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          partner_domain?: string
+          partner_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partners_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_keywords: {
+        Row: {
+          created_at: string | null
+          id: string
+          keyword: string
+          profile_id: string
+          updated_at: string | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          keyword: string
+          profile_id: string
+          updated_at?: string | null
+          weight?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          keyword?: string
+          profile_id?: string
+          updated_at?: string | null
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_keywords_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tenders: {
         Row: {
@@ -89,16 +379,59 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_user_organization: { Args: { user_id: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      user_can_edit: { Args: { _user_id: string }; Returns: boolean }
+      user_has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "editor" | "viewer"
       keyword_category: "positive" | "negative"
+      partner_combination_type: "solo" | "lead_partner" | "partner_led"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -226,7 +559,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "editor", "viewer"],
       keyword_category: ["positive", "negative"],
+      partner_combination_type: ["solo", "lead_partner", "partner_led"],
     },
   },
 } as const
