@@ -416,6 +416,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_org_for_user: {
+        Args: { org_domain: string; org_name: string }
+        Returns: string
+      }
       get_user_organization: { Args: { user_id: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }

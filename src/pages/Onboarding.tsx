@@ -78,43 +78,42 @@ const Onboarding = () => {
   const handleStep2Next = async () => {
     setLoading(true);
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      let orgId = organizationId;
 
-      // Create organization
-      const { data: org, error: orgError } = await supabase
-        .from("organizations")
-        .insert({ name: companyName, domain })
-        .select()
-        .single();
+      // If user doesn't have an organization yet, create one via secure RPC
+      if (!orgId) {
+        const { data: newOrgId, error: rpcError } = await supabase.rpc(
+          "create_org_for_user",
+          {
+            org_name: companyName,
+            org_domain: domain,
+          }
+        );
 
-      if (orgError) throw orgError;
-      setOrganizationId(org.id);
+        if (rpcError) {
+          console.error("Error creating organization:", rpcError);
+          throw new Error(`Kunne ikke opprette organisasjon: ${rpcError.message}`);
+        }
 
-      // Create user role
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: user.id,
-          organization_id: org.id,
-          role: "admin",
-        });
+        orgId = newOrgId;
+        setOrganizationId(newOrgId);
+      }
 
-      if (roleError) throw roleError;
-
-      // Create company profile
+      // Create company profile for own company
       const { data: profile, error: profileError } = await supabase
         .from("company_profiles")
         .insert({
-          organization_id: org.id,
+          organization_id: orgId,
           profile_name: companyName,
           is_own_profile: true,
         })
         .select()
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Error creating company profile:", profileError);
+        throw new Error(`Kunne ikke opprette firmaprofil: ${profileError.message}`);
+      }
 
       // Save partner profiles
       const partnerProfiles = [];
@@ -122,19 +121,22 @@ const Onboarding = () => {
         const { data: partnerData, error: partnerError } = await supabase
           .from("partners")
           .insert({
-            organization_id: org.id,
+            organization_id: orgId,
             partner_name: partner.name,
             partner_domain: partner.domain,
           })
           .select()
           .single();
 
-        if (partnerError) throw partnerError;
+        if (partnerError) {
+          console.error(`Error creating partner ${partner.name}:`, partnerError);
+          throw new Error(`Kunne ikke opprette partner ${partner.name}: ${partnerError.message}`);
+        }
 
         const { data: partnerProfile, error: partnerProfileError } = await supabase
           .from("company_profiles")
           .insert({
-            organization_id: org.id,
+            organization_id: orgId,
             profile_name: partner.name,
             is_own_profile: false,
             partner_id: partnerData.id,
@@ -142,16 +144,20 @@ const Onboarding = () => {
           .select()
           .single();
 
-        if (partnerProfileError) throw partnerProfileError;
+        if (partnerProfileError) {
+          console.error(`Error creating profile for partner ${partner.name}:`, partnerProfileError);
+          throw new Error(`Kunne ikke opprette profil for partner ${partner.name}: ${partnerProfileError.message}`);
+        }
+        
         partnerProfiles.push(partnerProfile);
       }
 
       setStep(3);
-    } catch (error) {
-      console.error("Error saving company info:", error);
+    } catch (error: any) {
+      console.error("Error in onboarding step 2:", error);
       toast({
         title: "Feil",
-        description: "Kunne ikke lagre selskapsinformasjon",
+        description: error.message || "Kunne ikke lagre selskapsinformasjon",
         variant: "destructive",
       });
     } finally {

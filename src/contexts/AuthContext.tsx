@@ -30,13 +30,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from("user_roles")
         .select("organization_id, role")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching user organization:", error);
         return null;
       }
 
+      // data will be null if user has no organization yet (new user)
       return data;
     } catch (error) {
       console.error("Error in fetchUserOrganization:", error);
