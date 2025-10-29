@@ -14,12 +14,13 @@ const Login = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -54,8 +55,8 @@ const Login = () => {
 
     if (mode === "signup" && password !== confirmPassword) {
       toast({
-        title: "Passordene stemmer ikke",
-        description: "Pass på at begge passordfeltene er like",
+        title: "Passordene matcher ikke",
+        description: "Passord og bekreft passord må være like",
         variant: "destructive",
       });
       return;
@@ -76,7 +77,7 @@ const Login = () => {
         if (error) throw error;
 
         if (data.user) {
-          setShowConfirmation(true);
+          setEmailSent(true);
           toast({
             title: "Konto opprettet!",
             description: "Sjekk e-posten din for å bekrefte kontoen",
@@ -125,14 +126,14 @@ const Login = () => {
     }
   };
 
-  if (showConfirmation) {
+  if (emailSent) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl">Bekreft e-posten din</CardTitle>
             <CardDescription>
-              Vi har sendt deg en bekreftelsesmail
+              Vi har sendt en bekreftelseslenke til din e-post
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -141,19 +142,20 @@ const Login = () => {
                 <Mail className="h-8 w-8 text-primary" />
               </div>
               <p className="text-sm text-muted-foreground">
-                Sjekk innboksen din på <strong>{email}</strong> og klikk på lenken for å bekrefte kontoen din.
+                Vi har sendt en bekreftelseslenke til <strong>{email}</strong>. 
+                Vennligst sjekk innboksen din og klikk på lenken for å aktivere kontoen din.
               </p>
               <p className="text-xs text-muted-foreground">
-                Etter at du har bekreftet e-posten din, kan du logge inn med brukernavn og passord.
+                Husk å sjekke spam-mappen hvis du ikke finner e-posten.
               </p>
               <Button
                 variant="outline"
                 onClick={() => {
-                  setShowConfirmation(false);
-                  setMode("login");
+                  setEmailSent(false);
                   setEmail("");
                   setPassword("");
                   setConfirmPassword("");
+                  setMode("login");
                 }}
                 className="w-full"
               >
@@ -172,7 +174,7 @@ const Login = () => {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl">SjekkAnbud</CardTitle>
           <CardDescription>
-            {mode === "login" ? "Logg inn på din konto" : "Opprett en ny konto"}
+            {mode === "signup" ? "Opprett ny konto" : "Logg inn på din konto"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -187,6 +189,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 autoFocus
+                required
               />
             </div>
             
@@ -199,6 +202,7 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
+                required
               />
             </div>
             
@@ -208,10 +212,11 @@ const Login = () => {
                 <Input
                   id="confirm-password"
                   type="password"
-                  placeholder="Gjenta passord"
+                  placeholder="Skriv inn passord på nytt"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={loading}
+                  required
                 />
               </div>
             )}
@@ -236,6 +241,7 @@ const Login = () => {
               variant="link"
               onClick={() => {
                 setMode(mode === "login" ? "signup" : "login");
+                setPassword("");
                 setConfirmPassword("");
               }}
               disabled={loading}
