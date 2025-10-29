@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,22 +22,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, RefreshCw } from "lucide-react";
 import { useKeywords } from "@/contexts/KeywordsContext";
+import { ProfileMenu } from "@/components/ProfileMenu";
 
 const Keywords = () => {
   const { keywords, addKeyword, deleteKeyword, resetToStandard, loading } = useKeywords();
   const [newKeyword, setNewKeyword] = useState("");
   const [newWeight, setNewWeight] = useState("1");
   const [newCategory, setNewCategory] = useState<"positive" | "negative">("positive");
-  const navigate = useNavigate();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const isAuthenticated = sessionStorage.getItem("authenticated");
-    if (!isAuthenticated) {
-      navigate("/auth");
-      return;
-    }
-  }, [navigate]);
 
   const handleAddKeyword = () => {
     if (!newKeyword.trim()) {
@@ -95,14 +86,15 @@ const Keywords = () => {
               Endringer er midlertidige og gjelder kun din sesjon
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Button variant="outline" onClick={handleReset}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Tilbakestill
             </Button>
-            <Button variant="outline" onClick={() => navigate("/")}>
+            <Button variant="outline" onClick={() => window.location.href = "/"}>
               Tilbake til Dashboard
             </Button>
+            <ProfileMenu />
           </div>
         </div>
       </header>

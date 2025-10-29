@@ -1,22 +1,16 @@
-import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TendersTable } from "@/components/TendersTable";
 import { useToast } from "@/hooks/use-toast";
 import { useKeywords } from "@/contexts/KeywordsContext";
-import { useOnboardingCheck } from "@/hooks/useOnboardingCheck";
+import { useAuth } from "@/contexts/AuthContext";
+import { ProfileMenu } from "@/components/ProfileMenu";
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { keywords } = useKeywords();
-  const { loading: onboardingLoading, hasCompletedOnboarding } = useOnboardingCheck();
-
-  // Show loading state while checking onboarding
-  if (onboardingLoading || !hasCompletedOnboarding) {
-    return null;
-  }
+  const { organizationId } = useAuth();
 
   // Hjelpefunksjon for å hente anbud fra API
   const fetchTendersFromAPI = async () => {
@@ -63,10 +57,7 @@ const Dashboard = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    sessionStorage.removeItem("authenticated");
-    sessionStorage.removeItem("session-keywords");
-    navigate("/auth");
+    // Logout is now handled by ProfileMenu
   };
 
   return (
@@ -74,16 +65,14 @@ const Dashboard = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-foreground">Anbudsmonitor</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/keywords")}>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={() => window.location.href = "/keywords"}>
               Administrer Nøkkelord
             </Button>
             <Button variant="outline" onClick={handleManualFetch}>
               Hent Nå
             </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              Logg ut
-            </Button>
+            <ProfileMenu />
           </div>
         </div>
       </header>
