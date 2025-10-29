@@ -94,33 +94,6 @@ export type Database = {
           },
         ]
       }
-      keywords: {
-        Row: {
-          category: Database["public"]["Enums"]["keyword_category"]
-          created_at: string | null
-          id: string
-          keyword: string
-          updated_at: string | null
-          weight: number | null
-        }
-        Insert: {
-          category?: Database["public"]["Enums"]["keyword_category"]
-          created_at?: string | null
-          id?: string
-          keyword: string
-          updated_at?: string | null
-          weight?: number | null
-        }
-        Update: {
-          category?: Database["public"]["Enums"]["keyword_category"]
-          created_at?: string | null
-          id?: string
-          keyword?: string
-          updated_at?: string | null
-          weight?: number | null
-        }
-        Relationships: []
-      }
       minimum_requirements: {
         Row: {
           created_at: string | null
