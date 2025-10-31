@@ -46,40 +46,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        if (!mounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Defer Supabase calls with setTimeout
-          setTimeout(async () => {
-            const orgData = await fetchUserOrganization(session.user.id);
-            if (orgData) {
-              setOrganizationId(orgData.organization_id);
-              setUserRole(orgData.role as UserRole);
-            } else {
-              setOrganizationId(null);
-              setUserRole(null);
-            }
-            setLoading(false);
-          }, 0);
+          const orgData = await fetchUserOrganization(session.user.id);
+          if (!mounted) return;
+          
+          if (orgData) {
+            setOrganizationId(orgData.organization_id);
+            setUserRole(orgData.role as UserRole);
+          } else {
+            setOrganizationId(null);
+            setUserRole(null);
+          }
         } else {
           setOrganizationId(null);
           setUserRole(null);
-          setLoading(false);
         }
+        
+        setLoading(false);
       }
     );
 
     // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
         const orgData = await fetchUserOrganization(session.user.id);
+        if (!mounted) return;
+        
         if (orgData) {
           setOrganizationId(orgData.organization_id);
           setUserRole(orgData.role as UserRole);
@@ -88,7 +95,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
