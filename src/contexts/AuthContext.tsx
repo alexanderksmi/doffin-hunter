@@ -50,29 +50,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!mounted) return;
         
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          const orgData = await fetchUserOrganization(session.user.id);
-          if (!mounted) return;
-          
-          if (orgData) {
-            setOrganizationId(orgData.organization_id);
-            setUserRole(orgData.role as UserRole);
-          } else {
-            setOrganizationId(null);
-            setUserRole(null);
-          }
+          fetchUserOrganization(session.user.id).then((orgData) => {
+            if (!mounted) return;
+            
+            if (orgData) {
+              setOrganizationId(orgData.organization_id);
+              setUserRole(orgData.role as UserRole);
+            } else {
+              setOrganizationId(null);
+              setUserRole(null);
+            }
+            setLoading(false);
+          });
         } else {
           setOrganizationId(null);
           setUserRole(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
