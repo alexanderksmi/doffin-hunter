@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 interface TenderEvaluation {
   id: string;
@@ -41,6 +42,8 @@ export const RadarTab = () => {
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
   const [noiseFilter, setNoiseFilter] = useState(true);
   const [combinations, setCombinations] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (organizationId) {
@@ -158,6 +161,35 @@ export const RadarTab = () => {
     });
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Trigger re-evaluation of tenders
+      const { error } = await supabase.functions.invoke('evaluate-tenders', {
+        body: { organizationId }
+      });
+
+      if (error) throw error;
+
+      // Fetch updated evaluations
+      await fetchEvaluations();
+
+      toast({
+        title: "Oppdatert",
+        description: "Anbudsdata er oppdatert",
+      });
+    } catch (error) {
+      console.error('Error refreshing:', error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke oppdatere data",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-4 items-center flex-wrap">
@@ -188,6 +220,16 @@ export const RadarTab = () => {
             Støybryter (kun fulle treff)
           </Label>
         </div>
+
+        <Button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          variant="outline"
+          size="sm"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          Oppdater
+        </Button>
 
         <div className="ml-auto text-sm text-muted-foreground">
           {evaluations.length} anbud
