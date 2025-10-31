@@ -11,9 +11,6 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const doffinApiKey = Deno.env.get('DOFFIN_API_KEY');
 
-// CPV codes to filter on
-const TARGET_CPV_CODES = ['48000000', '48311000', '72200000', '72500000', '79995100'];
-
 // Maximum tenders to process per sync
 const MAX_TENDERS_PER_SYNC = 200;
 
@@ -78,11 +75,6 @@ serve(async (req) => {
       numHitsPerPage: String(Math.min(MAX_TENDERS_PER_SYNC, 100)),
       page: '1',
       sortBy: 'PUBLICATION_DATE_DESC'
-    });
-    
-    // Add CPV code filters
-    TARGET_CPV_CODES.forEach(code => {
-      params.append('cpvCode', code);
     });
     
     // Add notice type filters to include all relevant categories
