@@ -235,9 +235,10 @@ async function evaluateTenderCombination(
     }
   }
 
-  const allMinimumRequirementsMet = missingMinReqs.length === 0;
+  // Changed logic: At least ONE minimum requirement must be met
+  const allMinimumRequirementsMet = metMinReqs.length > 0;
 
-  // If minimum requirements not met, score is 0
+  // If minimum requirements not met (none found), score is 0
   if (!allMinimumRequirementsMet) {
     await supabase
       .from('tender_evaluations')
@@ -259,7 +260,7 @@ async function evaluateTenderCombination(
         matched_support_keywords: [],
         matched_negative_keywords: [],
         matched_cpv_codes: [],
-        explanation: `Mangler minimumskrav: ${missingMinReqs.join(', ')}`
+        explanation: `Oppfyller ikke minst ett minimumskrav`
       }, {
         onConflict: 'tender_id,organization_id,combination_id'
       });
