@@ -12,7 +12,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const doffinApiKey = Deno.env.get('DOFFIN_API_KEY');
 
 // Maximum tenders to process per sync
-const MAX_TENDERS_PER_SYNC = 200;
+const MAX_TENDERS_PER_SYNC = 500;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
