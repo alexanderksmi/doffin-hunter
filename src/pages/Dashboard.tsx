@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { RadarTab } from "@/components/radar/RadarTab";
+import { MatchesTab } from "@/components/matches/MatchesTab";
 
 const Dashboard = () => {
   return (
@@ -28,9 +29,7 @@ const Dashboard = () => {
           </TabsContent>
           
           <TabsContent value="matches" className="mt-4">
-            <div className="text-center py-8 text-muted-foreground">
-              Matches-tab kommer snart
-            </div>
+            <MatchesTab />
           </TabsContent>
           
           <TabsContent value="mine-lop" className="mt-4">

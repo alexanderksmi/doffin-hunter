@@ -82,21 +82,33 @@ const Onboarding = () => {
 
       // If user doesn't have an organization yet, create one via secure RPC
       if (!orgId) {
-        const { data: newOrgId, error: rpcError } = await supabase.rpc(
-          "create_org_for_user",
-          {
-            org_name: companyName,
-            org_domain: domain,
+        // First check if user already has an org (from a previous incomplete onboarding)
+        const { data: existingRole } = await supabase
+          .from("user_roles")
+          .select("organization_id")
+          .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+          .maybeSingle();
+
+        if (existingRole?.organization_id) {
+          orgId = existingRole.organization_id;
+          setOrganizationId(existingRole.organization_id);
+        } else {
+          const { data: newOrgId, error: rpcError } = await supabase.rpc(
+            "create_org_for_user",
+            {
+              org_name: companyName,
+              org_domain: domain,
+            }
+          );
+
+          if (rpcError) {
+            console.error("Error creating organization:", rpcError);
+            throw new Error(`Kunne ikke opprette organisasjon: ${rpcError.message}`);
           }
-        );
 
-        if (rpcError) {
-          console.error("Error creating organization:", rpcError);
-          throw new Error(`Kunne ikke opprette organisasjon: ${rpcError.message}`);
+          orgId = newOrgId;
+          setOrganizationId(newOrgId);
         }
-
-        orgId = newOrgId;
-        setOrganizationId(newOrgId);
       }
 
       // Create company profile for own company
@@ -358,7 +370,10 @@ const Onboarding = () => {
         description: "Tar deg til dashboardet...",
       });
 
-      navigate("/");
+      // Reload to ensure AuthContext picks up the new organization
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1000);
     } catch (error) {
       console.error("Error finalizing onboarding:", error);
       toast({
