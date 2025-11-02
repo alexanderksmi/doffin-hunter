@@ -46,11 +46,6 @@ export const RadarTab = () => {
     if (organizationId) {
       fetchCombinations();
       fetchEvaluations();
-      
-      // Trigger evaluation on mount to ensure fresh data
-      supabase.functions.invoke('evaluate-tenders', {
-        body: { organizationId }
-      });
     }
   }, [organizationId]);
 
@@ -207,6 +202,24 @@ export const RadarTab = () => {
             </SelectContent>
           </Select>
         </div>
+
+        <Button
+          onClick={async () => {
+            setLoading(true);
+            await supabase.functions.invoke('fetch-doffin-tenders');
+            await fetchEvaluations();
+            setLoading(false);
+            toast({
+              title: "Oppdatert",
+              description: "Nye anbud hentet og evaluert",
+            });
+          }}
+          variant="outline"
+          size="sm"
+          disabled={loading}
+        >
+          Hent nye anbud
+        </Button>
 
         <div className="ml-auto text-sm text-muted-foreground">
           {evaluations.length} anbud
