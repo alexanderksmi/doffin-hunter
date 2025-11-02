@@ -85,6 +85,9 @@ export const RadarTab = () => {
 
     if (graphs) {
       graphs.forEach((g: any) => {
+        // Skip if profiles are missing
+        if (!g.lead_profile || !g.partner_profile) return;
+        
         const label = g.combination_type === 'lead_partner' 
           ? `${g.lead_profile.profile_name} leder + ${g.partner_profile.profile_name}`
           : `${g.partner_profile.profile_name} leder + ${g.lead_profile.profile_name}`;
