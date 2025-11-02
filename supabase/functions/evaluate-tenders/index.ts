@@ -130,7 +130,7 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     return;
   }
 
-  // Only evaluate solo (own profile) - partners are filtered in frontend
+  // Evaluate both own profile (solo) and each partner profile separately
   const combinations: Combination[] = [];
 
   // Add solo combination (own profile only)
@@ -141,7 +141,18 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     profile_id: ownProfile.id
   });
 
-  console.log(`Built 1 solo combination for ${ownProfile.profile_name}`);
+  // Add each partner profile as separate evaluation
+  const partnerProfiles = profiles.filter((p: any) => !p.is_own_profile);
+  for (const partner of partnerProfiles) {
+    combinations.push({
+      id: partner.id,
+      type: 'solo',
+      profile: partner as any,
+      profile_id: partner.id
+    });
+  }
+
+  console.log(`Built ${combinations.length} combinations (1 solo + ${partnerProfiles.length} partners)`);
 
   // Fetch tenders for this org
   const { data: tenders, error: tendersError } = await supabase
@@ -329,13 +340,13 @@ async function evaluateTenderCombination(
     explanation = 'Ingen minimumskrav oppfylt';
   }
 
-  // Save solo evaluation (combination_id is always null for solo)
+  // Save evaluation
   const { error: saveError } = await supabase
     .from('tender_evaluations')
     .upsert({
       tender_id: tender.id,
       organization_id: orgId,
-      combination_id: null,
+      combination_id: combination.id,
       combination_type: 'solo',
       lead_profile_id: combination.profile_id,
       partner_profile_id: null,
@@ -356,6 +367,6 @@ async function evaluateTenderCombination(
     });
 
   if (saveError) {
-    console.error(`ERROR saving solo evaluation:`, saveError);
+    console.error(`ERROR saving evaluation:`, saveError);
   }
 }

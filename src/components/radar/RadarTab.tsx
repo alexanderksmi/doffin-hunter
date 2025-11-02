@@ -126,16 +126,28 @@ export const RadarTab = () => {
     if (!ownProfile) return;
 
     const combos: any[] = [
-      { id: 'solo', label: `Solo (${ownProfile.profile_name})`, type: 'solo' }
+      { id: 'own', profileId: ownProfile.id, label: `Kun egne (${ownProfile.profile_name})`, type: 'own' }
     ];
 
-    // Add partner-only combinations
+    // Add partner profiles
     const partnerProfiles = profiles.filter(p => !p.is_own_profile);
     partnerProfiles.forEach(partner => {
       combos.push({ 
-        id: partner.id, 
+        id: `partner_${partner.id}`,
+        profileId: partner.id,
         label: `Kun ${partner.profile_name}`, 
-        type: 'partner_only' 
+        type: 'partner'
+      });
+    });
+
+    // Add combination matches (both own AND each partner)
+    partnerProfiles.forEach(partner => {
+      combos.push({
+        id: `combo_${ownProfile.id}_${partner.id}`,
+        ownProfileId: ownProfile.id,
+        partnerProfileId: partner.id,
+        label: `${ownProfile.profile_name} + ${partner.profile_name}`,
+        type: 'combination'
       });
     });
 
@@ -145,104 +157,209 @@ export const RadarTab = () => {
   const fetchEvaluations = async () => {
     setLoading(true);
 
-    // First get all solo evaluations (always fetch all solo)
-    const { data: allEvals, error } = await supabase
-      .from('tender_evaluations')
-      .select(`
-        *,
-        tender:tender_id (
-          id,
-          title,
-          client,
-          deadline,
-          published_date,
-          doffin_url,
-          body
-        ),
-        lead_profile:lead_profile_id (profile_name),
-        partner_profile:partner_profile_id (profile_name)
-      `)
-      .eq('organization_id', organizationId)
-      .eq('combination_type', 'solo')
-      .gte('total_score', 1)
-      .order('total_score', { ascending: false });
+    const now = new Date();
+    const scoreThreshold = parseInt(minScore) || 0;
 
-    if (error) {
-      console.error('Error fetching evaluations:', error);
+    // Determine which evaluations to fetch based on filter
+    if (selectedCombination === 'all') {
+      // Fetch all evaluations
+      const { data: allEvals, error } = await supabase
+        .from('tender_evaluations')
+        .select(`
+          *,
+          tender:tender_id (
+            id,
+            title,
+            client,
+            deadline,
+            published_date,
+            doffin_url,
+            body
+          ),
+          lead_profile:lead_profile_id (profile_name),
+          partner_profile:partner_profile_id (profile_name)
+        `)
+        .eq('organization_id', organizationId)
+        .gte('total_score', 1)
+        .order('total_score', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching evaluations:', error);
+        setLoading(false);
+        return;
+      }
+
+      const filtered = (allEvals || []).filter((evaluation: any) => {
+        const deadline = evaluation.tender?.deadline;
+        if (deadlineFilter === 'expired') {
+          if (!deadline || new Date(deadline) > now) return false;
+        } else if (deadlineFilter === 'active') {
+          if (!deadline || new Date(deadline) <= now) return false;
+        }
+        
+        const published = evaluation.tender?.published_date;
+        if (publishedFilter !== 'all' && published) {
+          const publishedDate = new Date(published);
+          const daysAgo = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (publishedFilter === '7days' && daysAgo > 7) return false;
+          if (publishedFilter === '14days' && daysAgo > 14) return false;
+          if (publishedFilter === '30days' && daysAgo > 30) return false;
+        }
+
+        if (evaluation.total_score < scoreThreshold) return false;
+
+        return true;
+      });
+
+      setEvaluations(filtered as any);
       setLoading(false);
       return;
     }
 
-    // Filter evaluations by deadline, published date, and score
-    const now = new Date();
-    let filteredEvals = (allEvals || []).filter((evaluation: any) => {
-      // Filter by deadline
-      const deadline = evaluation.tender?.deadline;
-      if (deadlineFilter === 'expired') {
-        if (!deadline || new Date(deadline) > now) return false;
-      } else if (deadlineFilter === 'active') {
-        if (!deadline || new Date(deadline) <= now) return false;
-      }
-      
-      // Filter by published date
-      const published = evaluation.tender?.published_date;
-      if (publishedFilter !== 'all' && published) {
-        const publishedDate = new Date(published);
-        const daysAgo = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (publishedFilter === '7days' && daysAgo > 7) return false;
-        if (publishedFilter === '14days' && daysAgo > 14) return false;
-        if (publishedFilter === '30days' && daysAgo > 30) return false;
-      }
-
-      // Filter by minimum score
-      const scoreThreshold = parseInt(minScore) || 0;
-      if (evaluation.total_score < scoreThreshold) return false;
-
-      return true;
-    });
-
-    // Apply partner filter (live search through tender content)
-    if (selectedCombination !== 'all' && selectedCombination !== 'solo') {
-      // This is a partner profile ID - fetch the partner's keywords
-      const { data: partnerProfile } = await supabase
-        .from('company_profiles')
-        .select(`
-          id,
-          profile_name,
-          minimum_requirements (keyword),
-          support_keywords (keyword)
-        `)
-        .eq('id', selectedCombination)
-        .single();
-
-      if (partnerProfile) {
-        // Filter evaluations to only show those where partner keywords match
-        filteredEvals = filteredEvals.filter((evaluation: any) => {
-          const tender = evaluation.tender;
-          if (!tender) return false;
-
-          const tenderText = `${tender.title} ${tender.body || ''}`.toLowerCase();
-          
-          // Check if any partner minimum requirement matches
-          const partnerMinReqs = partnerProfile.minimum_requirements || [];
-          const hasPartnerMinReq = partnerMinReqs.some((req: any) => 
-            tenderText.includes(req.keyword.toLowerCase())
-          );
-
-          // Check if any partner support keyword matches
-          const partnerSupportKws = partnerProfile.support_keywords || [];
-          const hasPartnerSupportKw = partnerSupportKws.some((kw: any) =>
-            tenderText.includes(kw.keyword.toLowerCase())
-          );
-
-          return hasPartnerMinReq || hasPartnerSupportKw;
-        });
-      }
+    const combo = combinations.find(c => c.id === selectedCombination);
+    if (!combo) {
+      setLoading(false);
+      return;
     }
 
-    setEvaluations(filteredEvals as any);
-    setLoading(false);
+    if (combo.type === 'own' || combo.type === 'partner') {
+      // Fetch evaluations for single profile
+      const { data: evals, error } = await supabase
+        .from('tender_evaluations')
+        .select(`
+          *,
+          tender:tender_id (
+            id,
+            title,
+            client,
+            deadline,
+            published_date,
+            doffin_url,
+            body
+          ),
+          lead_profile:lead_profile_id (profile_name),
+          partner_profile:partner_profile_id (profile_name)
+        `)
+        .eq('organization_id', organizationId)
+        .eq('lead_profile_id', combo.profileId)
+        .gte('total_score', 1)
+        .order('total_score', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching evaluations:', error);
+        setLoading(false);
+        return;
+      }
+
+      const filtered = (evals || []).filter((evaluation: any) => {
+        const deadline = evaluation.tender?.deadline;
+        if (deadlineFilter === 'expired') {
+          if (!deadline || new Date(deadline) > now) return false;
+        } else if (deadlineFilter === 'active') {
+          if (!deadline || new Date(deadline) <= now) return false;
+        }
+        
+        const published = evaluation.tender?.published_date;
+        if (publishedFilter !== 'all' && published) {
+          const publishedDate = new Date(published);
+          const daysAgo = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (publishedFilter === '7days' && daysAgo > 7) return false;
+          if (publishedFilter === '14days' && daysAgo > 14) return false;
+          if (publishedFilter === '30days' && daysAgo > 30) return false;
+        }
+
+        if (evaluation.total_score < scoreThreshold) return false;
+
+        return true;
+      });
+
+      setEvaluations(filtered as any);
+      setLoading(false);
+      return;
+    }
+
+    if (combo.type === 'combination') {
+      // Fetch evaluations for BOTH profiles
+      const { data: ownEvals, error: ownError } = await supabase
+        .from('tender_evaluations')
+        .select(`
+          *,
+          tender:tender_id (
+            id,
+            title,
+            client,
+            deadline,
+            published_date,
+            doffin_url,
+            body
+          ),
+          lead_profile:lead_profile_id (profile_name)
+        `)
+        .eq('organization_id', organizationId)
+        .eq('lead_profile_id', combo.ownProfileId)
+        .gte('total_score', 1);
+
+      const { data: partnerEvals, error: partnerError } = await supabase
+        .from('tender_evaluations')
+        .select(`
+          *,
+          tender:tender_id (
+            id,
+            title,
+            client,
+            deadline,
+            published_date,
+            doffin_url,
+            body
+          ),
+          lead_profile:lead_profile_id (profile_name)
+        `)
+        .eq('organization_id', organizationId)
+        .eq('lead_profile_id', combo.partnerProfileId)
+        .gte('total_score', 1);
+
+      if (ownError || partnerError) {
+        console.error('Error fetching combination evaluations');
+        setLoading(false);
+        return;
+      }
+
+      // Find tenders that match BOTH profiles
+      const ownTenderIds = new Set((ownEvals || []).map((e: any) => e.tender_id));
+      const partnerTenderIds = new Set((partnerEvals || []).map((e: any) => e.tender_id));
+      const bothTenderIds = [...ownTenderIds].filter(id => partnerTenderIds.has(id));
+
+      // Get evaluations for matched tenders
+      const combinedEvals = (ownEvals || []).filter((e: any) => bothTenderIds.includes(e.tender_id));
+
+      const filtered = combinedEvals.filter((evaluation: any) => {
+        const deadline = evaluation.tender?.deadline;
+        if (deadlineFilter === 'expired') {
+          if (!deadline || new Date(deadline) > now) return false;
+        } else if (deadlineFilter === 'active') {
+          if (!deadline || new Date(deadline) <= now) return false;
+        }
+        
+        const published = evaluation.tender?.published_date;
+        if (publishedFilter !== 'all' && published) {
+          const publishedDate = new Date(published);
+          const daysAgo = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (publishedFilter === '7days' && daysAgo > 7) return false;
+          if (publishedFilter === '14days' && daysAgo > 14) return false;
+          if (publishedFilter === '30days' && daysAgo > 30) return false;
+        }
+
+        if (evaluation.total_score < scoreThreshold) return false;
+
+        return true;
+      });
+
+      setEvaluations(filtered as any);
+      setLoading(false);
+    }
   };
 
   const getCombinationLabel = (evaluation: TenderEvaluation) => {
