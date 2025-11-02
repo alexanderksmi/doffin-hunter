@@ -40,7 +40,7 @@ interface Profile {
 
 interface Combination {
   id: string | null;
-  type: 'solo' | 'partner_only';
+  type: 'solo';
   profile: Profile;
   profile_id: string;
 }
@@ -130,10 +130,10 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     return;
   }
 
-  // Build combinations - solo for own profile + partner_only for each partner
+  // Only evaluate solo (own profile) - partners are filtered in frontend
   const combinations: Combination[] = [];
 
-  // Add solo combination (own profile)
+  // Add solo combination (own profile only)
   combinations.push({
     id: null,
     type: 'solo',
@@ -141,21 +141,7 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     profile_id: ownProfile.id
   });
 
-  // Add partner_only combinations (one for each partner profile)
-  const partnerProfiles = profiles.filter((p: any) => !p.is_own_profile);
-  console.log(`Found ${partnerProfiles.length} partner profiles`);
-  
-  for (const partnerProfile of partnerProfiles) {
-    console.log(`Adding partner_only combination for: ${partnerProfile.profile_name} (id: ${partnerProfile.id})`);
-    combinations.push({
-      id: partnerProfile.id,
-      type: 'partner_only',
-      profile: partnerProfile as any,
-      profile_id: partnerProfile.id
-    });
-  }
-
-  console.log(`Built ${combinations.length} combinations (1 solo + ${partnerProfiles.length} partner_only)`);
+  console.log(`Built 1 solo combination for ${ownProfile.profile_name}`);
 
   // Fetch tenders for this org
   const { data: tenders, error: tendersError } = await supabase
@@ -343,20 +329,14 @@ async function evaluateTenderCombination(
     explanation = 'Ingen minimumskrav oppfylt';
   }
 
-  // For partner_only, use a deterministic combination_id based on profile_id
-  // For solo, combination_id is null
-  const combinationIdForDb = combination.type === 'partner_only' ? combination.id : null;
-  
-  console.log(`Saving evaluation: tender=${tender.id.substring(0, 8)}, combo_type=${combination.type}, combo_id=${combinationIdForDb}, score=${totalScore}`);
-
-  // Save evaluation
+  // Save solo evaluation (combination_id is always null for solo)
   const { error: saveError } = await supabase
     .from('tender_evaluations')
     .upsert({
       tender_id: tender.id,
       organization_id: orgId,
-      combination_id: combinationIdForDb,
-      combination_type: combination.type,
+      combination_id: null,
+      combination_type: 'solo',
       lead_profile_id: combination.profile_id,
       partner_profile_id: null,
       all_minimum_requirements_met: true,
@@ -376,8 +356,6 @@ async function evaluateTenderCombination(
     });
 
   if (saveError) {
-    console.error(`ERROR saving evaluation for ${combination.type}:`, saveError);
-  } else {
-    console.log(`✓ Saved ${combination.type} evaluation with score ${totalScore}`);
+    console.error(`ERROR saving solo evaluation:`, saveError);
   }
 }

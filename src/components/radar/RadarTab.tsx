@@ -145,7 +145,7 @@ export const RadarTab = () => {
   const fetchEvaluations = async () => {
     setLoading(true);
 
-    // First get all evaluations
+    // First get all solo evaluations (always fetch all solo)
     const { data: allEvals, error } = await supabase
       .from('tender_evaluations')
       .select(`
@@ -156,12 +156,14 @@ export const RadarTab = () => {
           client,
           deadline,
           published_date,
-          doffin_url
+          doffin_url,
+          body
         ),
         lead_profile:lead_profile_id (profile_name),
         partner_profile:partner_profile_id (profile_name)
       `)
       .eq('organization_id', organizationId)
+      .eq('combination_type', 'solo')
       .gte('total_score', 1)
       .order('total_score', { ascending: false });
 
@@ -171,7 +173,7 @@ export const RadarTab = () => {
       return;
     }
 
-    // Filter evaluations
+    // Filter evaluations by deadline, published date, and score
     const now = new Date();
     let filteredEvals = (allEvals || []).filter((evaluation: any) => {
       // Filter by deadline
@@ -181,7 +183,6 @@ export const RadarTab = () => {
       } else if (deadlineFilter === 'active') {
         if (!deadline || new Date(deadline) <= now) return false;
       }
-      // If 'all', include all regardless of deadline status
       
       // Filter by published date
       const published = evaluation.tender?.published_date;
@@ -201,15 +202,42 @@ export const RadarTab = () => {
       return true;
     });
 
-    // Apply combination filter
-    if (selectedCombination !== 'all') {
-      if (selectedCombination === 'solo') {
-        filteredEvals = filteredEvals.filter((e: any) => e.combination_type === 'solo' && e.combination_id === null);
-      } else {
-        // Filter by combination_id for partner_only
-        filteredEvals = filteredEvals.filter((e: any) => 
-          e.combination_type === 'partner_only' && e.combination_id === selectedCombination
-        );
+    // Apply partner filter (live search through tender content)
+    if (selectedCombination !== 'all' && selectedCombination !== 'solo') {
+      // This is a partner profile ID - fetch the partner's keywords
+      const { data: partnerProfile } = await supabase
+        .from('company_profiles')
+        .select(`
+          id,
+          profile_name,
+          minimum_requirements (keyword),
+          support_keywords (keyword)
+        `)
+        .eq('id', selectedCombination)
+        .single();
+
+      if (partnerProfile) {
+        // Filter evaluations to only show those where partner keywords match
+        filteredEvals = filteredEvals.filter((evaluation: any) => {
+          const tender = evaluation.tender;
+          if (!tender) return false;
+
+          const tenderText = `${tender.title} ${tender.body || ''}`.toLowerCase();
+          
+          // Check if any partner minimum requirement matches
+          const partnerMinReqs = partnerProfile.minimum_requirements || [];
+          const hasPartnerMinReq = partnerMinReqs.some((req: any) => 
+            tenderText.includes(req.keyword.toLowerCase())
+          );
+
+          // Check if any partner support keyword matches
+          const partnerSupportKws = partnerProfile.support_keywords || [];
+          const hasPartnerSupportKw = partnerSupportKws.some((kw: any) =>
+            tenderText.includes(kw.keyword.toLowerCase())
+          );
+
+          return hasPartnerMinReq || hasPartnerSupportKw;
+        });
       }
     }
 
@@ -218,15 +246,7 @@ export const RadarTab = () => {
   };
 
   const getCombinationLabel = (evaluation: TenderEvaluation) => {
-    if (evaluation.combination_type === 'solo') {
-      return `Solo (${evaluation.lead_profile.profile_name})`;
-    }
-    
-    if (evaluation.combination_type === 'partner_only') {
-      return `Kun ${evaluation.lead_profile.profile_name}`;
-    }
-    
-    return evaluation.lead_profile.profile_name;
+    return `Solo (${evaluation.lead_profile.profile_name})`;
   };
 
   const formatDate = (dateString: string) => {
