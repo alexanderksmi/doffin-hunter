@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,14 @@ const Onboarding = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { organizationId: existingOrgId } = useAuth();
+
+  // Redirect to dashboard if user already has an organization
+  useEffect(() => {
+    if (existingOrgId) {
+      navigate("/");
+    }
+  }, [existingOrgId, navigate]);
 
   // Step 1: Company info
   const [companyName, setCompanyName] = useState("");

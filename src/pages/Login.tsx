@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Lock, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -17,6 +18,14 @@ const Login = () => {
   const [emailSent, setEmailSent] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, organizationId, loading: authLoading } = useAuth();
+
+  // Redirect if already logged in with organization
+  useEffect(() => {
+    if (!authLoading && user && organizationId) {
+      navigate("/");
+    }
+  }, [user, organizationId, authLoading, navigate]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
