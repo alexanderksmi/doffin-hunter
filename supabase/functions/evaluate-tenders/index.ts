@@ -143,7 +143,10 @@ async function evaluateOrganization(supabase: any, orgId: string) {
 
   // Add partner_only combinations (one for each partner profile)
   const partnerProfiles = profiles.filter((p: any) => !p.is_own_profile);
+  console.log(`Found ${partnerProfiles.length} partner profiles`);
+  
   for (const partnerProfile of partnerProfiles) {
+    console.log(`Adding partner_only combination for: ${partnerProfile.profile_name} (id: ${partnerProfile.id})`);
     combinations.push({
       id: partnerProfile.id,
       type: 'partner_only',
@@ -340,13 +343,19 @@ async function evaluateTenderCombination(
     explanation = 'Ingen minimumskrav oppfylt';
   }
 
+  // For partner_only, use a deterministic combination_id based on profile_id
+  // For solo, combination_id is null
+  const combinationIdForDb = combination.type === 'partner_only' ? combination.id : null;
+  
+  console.log(`Saving evaluation: tender=${tender.id.substring(0, 8)}, combo_type=${combination.type}, combo_id=${combinationIdForDb}, score=${totalScore}`);
+
   // Save evaluation
-  await supabase
+  const { error: saveError } = await supabase
     .from('tender_evaluations')
     .upsert({
       tender_id: tender.id,
       organization_id: orgId,
-      combination_id: combination.id,
+      combination_id: combinationIdForDb,
       combination_type: combination.type,
       lead_profile_id: combination.profile_id,
       partner_profile_id: null,
@@ -365,4 +374,10 @@ async function evaluateTenderCombination(
     }, {
       onConflict: 'tender_id,organization_id,combination_id'
     });
+
+  if (saveError) {
+    console.error(`ERROR saving evaluation for ${combination.type}:`, saveError);
+  } else {
+    console.log(`✓ Saved ${combination.type} evaluation with score ${totalScore}`);
+  }
 }
