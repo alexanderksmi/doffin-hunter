@@ -356,13 +356,16 @@ async function evaluateTenderCombination(
   const totalScore = metMinReqs.length;
 
   // Build explanation showing which minimum requirements were met
-  const explanationParts: string[] = [];
-  
-  metMinReqs.forEach(req => {
-    explanationParts.push(`${req.keyword}`);
-  });
-
-  const explanation = `Oppfylt: ${explanationParts.join(', ')} (${totalScore} poeng)`;
+  let explanation = '';
+  if (totalScore > 0) {
+    const explanationParts: string[] = [];
+    metMinReqs.forEach(req => {
+      explanationParts.push(`${req.keyword}`);
+    });
+    explanation = `Oppfylt: ${explanationParts.join(', ')} (${totalScore} poeng)`;
+  } else {
+    explanation = 'Ingen minimumskrav oppfylt';
+  }
 
   // Save evaluation
   await supabase
