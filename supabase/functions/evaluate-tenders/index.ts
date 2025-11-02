@@ -40,7 +40,7 @@ interface Profile {
 
 interface Combination {
   id: string | null;
-  type: 'solo' | 'lead_partner' | 'partner_lead';
+  type: 'solo' | 'lead_partner' | 'partner_led';
   lead_profile: Profile;
   partner_profile: Profile | null;
 }
@@ -141,24 +141,36 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     partner_profile: null
   });
 
-  // Fetch partner graph combinations
+  // Fetch partner graph combinations (exclude solo as we already added it)
   const { data: partnerGraphs, error: graphError } = await supabase
     .from('partner_graph')
     .select('id, combination_type, lead_profile_id, partner_profile_id')
     .eq('organization_id', orgId);
 
-  if (!graphError && partnerGraphs && partnerGraphs.length > 0) {
+  if (graphError) {
+    console.error('Error fetching partner graphs:', graphError);
+  }
+  console.log(`Found ${partnerGraphs?.length || 0} partner graph rows`);
+  if (partnerGraphs) {
+    partnerGraphs.forEach((g: any) => console.log(`Graph: ${g.combination_type} (id: ${g.id})`));
+  }
+
+  if (partnerGraphs && partnerGraphs.length > 0) {
     for (const graph of partnerGraphs) {
+      console.log(`Processing graph: ${graph.combination_type}, lead: ${graph.lead_profile_id}, partner: ${graph.partner_profile_id}`);
       const leadProfile = profiles.find((p: any) => p.id === graph.lead_profile_id);
       const partnerProfile = profiles.find((p: any) => p.id === graph.partner_profile_id);
       
       if (leadProfile && partnerProfile) {
+        console.log(`✓ Adding ${graph.combination_type}: ${leadProfile.profile_name} + ${partnerProfile.profile_name}`);
         combinations.push({
           id: graph.id,
-          type: graph.combination_type as 'lead_partner' | 'partner_lead',
+          type: graph.combination_type,
           lead_profile: leadProfile as any,
           partner_profile: partnerProfile as any
         });
+      } else {
+        console.log(`✗ Missing profiles for ${graph.id}: lead=${!!leadProfile}, partner=${!!partnerProfile}`);
       }
     }
   }
