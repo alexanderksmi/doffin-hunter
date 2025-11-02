@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, RefreshCw } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { ExternalLink } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,13 +40,17 @@ export const RadarTab = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
   const [combinations, setCombinations] = useState<any[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (organizationId) {
       fetchCombinations();
       fetchEvaluations();
+      
+      // Trigger evaluation on mount to ensure fresh data
+      supabase.functions.invoke('evaluate-tenders', {
+        body: { organizationId }
+      });
     }
   }, [organizationId]);
 
@@ -56,6 +59,32 @@ export const RadarTab = () => {
       fetchEvaluations();
     }
   }, [selectedCombination, organizationId]);
+
+  // Subscribe to realtime updates for tender evaluations
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const channel = supabase
+      .channel('tender_evaluations_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tender_evaluations',
+          filter: `organization_id=eq.${organizationId}`
+        },
+        () => {
+          // Refresh evaluations when data changes
+          fetchEvaluations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organizationId]);
 
   const fetchCombinations = async () => {
     const { data: profiles } = await supabase
@@ -159,35 +188,6 @@ export const RadarTab = () => {
     });
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      // Trigger re-evaluation of tenders
-      const { error } = await supabase.functions.invoke('evaluate-tenders', {
-        body: { organizationId }
-      });
-
-      if (error) throw error;
-
-      // Fetch updated evaluations
-      await fetchEvaluations();
-
-      toast({
-        title: "Oppdatert",
-        description: "Anbudsdata er oppdatert",
-      });
-    } catch (error) {
-      console.error('Error refreshing:', error);
-      toast({
-        title: "Feil",
-        description: "Kunne ikke oppdatere data",
-        variant: "destructive",
-      });
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex gap-4 items-center flex-wrap">
@@ -207,16 +207,6 @@ export const RadarTab = () => {
             </SelectContent>
           </Select>
         </div>
-
-        <Button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          variant="outline"
-          size="sm"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Oppdater
-        </Button>
 
         <div className="ml-auto text-sm text-muted-foreground">
           {evaluations.length} anbud
