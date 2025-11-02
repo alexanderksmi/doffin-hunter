@@ -130,38 +130,16 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     return;
   }
 
-  // Build combinations
+  // Build combinations - ONLY solo (own profile) for now
   const combinations: Combination[] = [];
 
-  // Solo combination
+  // Solo combination only
   combinations.push({
     id: null,
     type: 'solo',
     lead_profile: ownProfile as any,
     partner_profile: null
   });
-
-  // Partner combinations from partner_graph
-  const { data: partnerGraphs, error: graphError } = await supabase
-    .from('partner_graph')
-    .select('*')
-    .eq('organization_id', orgId);
-
-  if (!graphError && partnerGraphs) {
-    for (const graph of partnerGraphs) {
-      const leadProfile = profiles.find((p: any) => p.id === graph.lead_profile_id);
-      const partnerProfile = profiles.find((p: any) => p.id === graph.partner_profile_id);
-
-      if (leadProfile && partnerProfile) {
-        combinations.push({
-          id: graph.id,
-          type: graph.combination_type,
-          lead_profile: leadProfile as any,
-          partner_profile: partnerProfile as any
-        });
-      }
-    }
-  }
 
   console.log(`Built ${combinations.length} combinations`);
 
