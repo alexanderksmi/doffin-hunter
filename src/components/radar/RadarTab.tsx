@@ -45,9 +45,39 @@ export const RadarTab = () => {
   useEffect(() => {
     if (organizationId) {
       fetchCombinations();
-      fetchEvaluations();
+      checkAndSyncTenders();
     }
   }, [organizationId]);
+
+  const checkAndSyncTenders = async () => {
+    try {
+      // Check when last sync happened
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('last_tender_sync_at')
+        .eq('id', organizationId)
+        .single();
+
+      const lastSync = org?.last_tender_sync_at ? new Date(org.last_tender_sync_at) : null;
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+      // If no sync or last sync was over 1 hour ago, trigger sync
+      if (!lastSync || lastSync < oneHourAgo) {
+        console.log('Triggering automatic tender sync...');
+        setLoading(true);
+        await supabase.functions.invoke('fetch-doffin-tenders', {
+          body: { organizationId }
+        });
+        setLoading(false);
+      }
+
+      // Fetch evaluations regardless
+      fetchEvaluations();
+    } catch (error) {
+      console.error('Error checking/syncing tenders:', error);
+      fetchEvaluations();
+    }
+  };
 
   useEffect(() => {
     if (organizationId) {
@@ -124,11 +154,13 @@ export const RadarTab = () => {
   const fetchEvaluations = async () => {
     setLoading(true);
 
-    let query = supabase
+    // First get all evaluations
+    const { data: allEvals, error } = await supabase
       .from('tender_evaluations')
       .select(`
         *,
         tender:tender_id (
+          id,
           title,
           client,
           deadline,
@@ -142,23 +174,30 @@ export const RadarTab = () => {
       .gte('total_score', 1)
       .order('total_score', { ascending: false });
 
+    if (error) {
+      console.error('Error fetching evaluations:', error);
+      setLoading(false);
+      return;
+    }
+
+    // Filter out expired tenders on the client side
+    const now = new Date();
+    let filteredEvals = (allEvals || []).filter((evaluation: any) => {
+      const deadline = evaluation.tender?.deadline;
+      if (!deadline) return true; // Keep tenders without deadline
+      return new Date(deadline) > now; // Keep only non-expired tenders
+    });
+
     // Apply combination filter
     if (selectedCombination !== 'all') {
       if (selectedCombination === 'solo') {
-        query = query.eq('combination_type', 'solo');
+        filteredEvals = filteredEvals.filter((e: any) => e.combination_type === 'solo');
       } else {
-        query = query.eq('combination_id', selectedCombination);
+        filteredEvals = filteredEvals.filter((e: any) => e.combination_id === selectedCombination);
       }
     }
 
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching evaluations:', error);
-    } else {
-      setEvaluations((data || []) as any);
-    }
-
+    setEvaluations(filteredEvals as any);
     setLoading(false);
   };
 
@@ -203,23 +242,6 @@ export const RadarTab = () => {
           </Select>
         </div>
 
-        <Button
-          onClick={async () => {
-            setLoading(true);
-            await supabase.functions.invoke('fetch-doffin-tenders');
-            await fetchEvaluations();
-            setLoading(false);
-            toast({
-              title: "Oppdatert",
-              description: "Nye anbud hentet og evaluert",
-            });
-          }}
-          variant="outline"
-          size="sm"
-          disabled={loading}
-        >
-          Hent nye anbud
-        </Button>
 
         <div className="ml-auto text-sm text-muted-foreground">
           {evaluations.length} anbud

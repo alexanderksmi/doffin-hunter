@@ -164,6 +164,7 @@ export type Database = {
           created_at: string | null
           domain: string
           id: string
+          last_tender_sync_at: string | null
           name: string
           updated_at: string | null
         }
@@ -172,6 +173,7 @@ export type Database = {
           created_at?: string | null
           domain: string
           id?: string
+          last_tender_sync_at?: string | null
           name: string
           updated_at?: string | null
         }
@@ -180,6 +182,7 @@ export type Database = {
           created_at?: string | null
           domain?: string
           id?: string
+          last_tender_sync_at?: string | null
           name?: string
           updated_at?: string | null
         }

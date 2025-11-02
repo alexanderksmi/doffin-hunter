@@ -26,6 +26,10 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Parse request body to check for specific organization ID
+    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const specificOrgId = body.organizationId;
+
     // Create sync log entry
     const { data: syncLog, error: syncLogError } = await supabase
       .from('tender_sync_log')
@@ -39,13 +43,44 @@ serve(async (req) => {
       syncLogId = syncLog.id;
     }
 
-    // Fetch all organizations
-    const { data: organizations, error: orgsError } = await supabase
-      .from('organizations')
-      .select('id');
+    // Delete old/expired tenders first (cleanup)
+    console.log("Cleaning up old/expired tenders...");
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     
-    if (orgsError) {
-      throw new Error(`Failed to fetch organizations: ${orgsError.message}`);
+    const { error: cleanupError } = await supabase
+      .from('tenders')
+      .delete()
+      .or(`deadline.lt.${oneDayAgo},created_at.lt.${sevenDaysAgo}`);
+    
+    if (cleanupError) {
+      console.error("Error cleaning up tenders:", cleanupError);
+    }
+
+    // Fetch organizations (specific one if provided, otherwise all)
+    let organizations;
+    if (specificOrgId) {
+      console.log(`Fetching tenders for specific organization: ${specificOrgId}`);
+      const { data, error: orgError } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('id', specificOrgId)
+        .single();
+      
+      if (orgError) {
+        throw new Error(`Failed to fetch organization: ${orgError.message}`);
+      }
+      organizations = [data];
+    } else {
+      console.log("Fetching tenders for all organizations");
+      const { data, error: orgError } = await supabase
+        .from('organizations')
+        .select('id');
+      
+      if (orgError) {
+        throw new Error(`Failed to fetch organizations: ${orgError.message}`);
+      }
+      organizations = data;
     }
     
     if (!organizations || organizations.length === 0) {
@@ -78,13 +113,9 @@ serve(async (req) => {
     });
     
     // Add notice type filters to include all relevant categories
-    // PIN (Prior Information Notice) - Forhåndskunngjøring
     params.append('noticeType', 'PIN');
-    // QS (Qualification System) - Kvalifikasjonsordning
     params.append('noticeType', 'QS');
-    // CN (Contract Notice) - Kunngjøring av konkurranse
     params.append('noticeType', 'CN');
-    // DPS (Dynamic Purchasing System) - Dynamisk innkjøpsordning
     params.append('noticeType', 'DPS');
 
     const searchUrl = `${baseUrl}?${params.toString()}`;
@@ -197,6 +228,14 @@ serve(async (req) => {
     }
 
     console.log(`Processed ${totalProcessed} tenders, saved ${totalSaved} total across all orgs`);
+
+    // Update last_tender_sync_at for all affected organizations
+    for (const org of organizations) {
+      await supabase
+        .from('organizations')
+        .update({ last_tender_sync_at: new Date().toISOString() })
+        .eq('id', org.id);
+    }
 
     // Update sync log
     if (syncLogId) {

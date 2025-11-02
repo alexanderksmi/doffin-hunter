@@ -373,15 +373,21 @@ const Onboarding = () => {
         }
       }
 
+      // Trigger initial tender sync for the new organization
+      console.log('Triggering initial tender sync for new organization...');
+      await supabase.functions.invoke('fetch-doffin-tenders', {
+        body: { organizationId }
+      });
+
       toast({
         title: "Oppsettet er fullført!",
-        description: "Tar deg til dashboardet...",
+        description: "Henter relevante anbud... Tar deg til dashboardet.",
       });
 
       // Reload to ensure AuthContext picks up the new organization
       setTimeout(() => {
         window.location.href = "/";
-      }, 1000);
+      }, 2000);
     } catch (error) {
       console.error("Error finalizing onboarding:", error);
       toast({
