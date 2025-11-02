@@ -107,7 +107,7 @@ serve(async (req) => {
 
     // Build search parameters
     const params = new URLSearchParams({
-      numHitsPerPage: '300',
+      numHitsPerPage: '500',
       page: '1',
       sortBy: 'PUBLICATION_DATE_DESC'
     });
