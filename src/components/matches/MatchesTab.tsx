@@ -143,6 +143,14 @@ export const MatchesTab = () => {
       setNewKeyword("");
       setNewWeight(1);
       loadProfileKeywords(selectedProfile);
+      
+      // Trigger re-evaluation of tenders with new keyword
+      toast({ title: "Re-evaluerer anbud...", description: "Dette tar noen sekunder" });
+      supabase.functions.invoke('evaluate-tenders', {
+        body: { organizationId }
+      }).then(() => {
+        toast({ title: "Anbud re-evaluert", description: "Oppdaterte resultater er klare" });
+      });
     } catch (error) {
       console.error("Error adding keyword:", error);
       toast({
@@ -172,6 +180,14 @@ export const MatchesTab = () => {
 
       toast({ title: "Nøkkelord slettet" });
       loadProfileKeywords(selectedProfile!);
+      
+      // Trigger re-evaluation of tenders after keyword deletion
+      toast({ title: "Re-evaluerer anbud...", description: "Dette tar noen sekunder" });
+      supabase.functions.invoke('evaluate-tenders', {
+        body: { organizationId }
+      }).then(() => {
+        toast({ title: "Anbud re-evaluert", description: "Oppdaterte resultater er klare" });
+      });
     } catch (error) {
       console.error("Error deleting keyword:", error);
       toast({
