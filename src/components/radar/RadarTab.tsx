@@ -363,7 +363,7 @@ export const RadarTab = () => {
   };
 
   const getCombinationLabel = (evaluation: TenderEvaluation) => {
-    return `Solo (${evaluation.lead_profile.profile_name})`;
+    return evaluation.lead_profile.profile_name;
   };
 
   const formatDate = (dateString: string) => {
@@ -496,20 +496,16 @@ export const RadarTab = () => {
                     {getCombinationLabel(evaluation)}
                   </TableCell>
                   <TableCell>
-                    {evaluation.combination_type === 'solo' ? (
-                      <Badge variant={evaluation.all_minimum_requirements_met ? "default" : "secondary"}>
-                        {evaluation.total_score}
-                      </Badge>
-                    ) : (
-                      <div className="flex gap-1">
-                        <Badge variant="default" className="bg-blue-600">
-                          {(evaluation.met_minimum_requirements as any[]).filter((r: any) => r.source === 'lead').length}
-                        </Badge>
-                        <Badge variant="default" className="bg-green-600">
-                          {(evaluation.met_minimum_requirements as any[]).filter((r: any) => r.source === 'partner').length}
-                        </Badge>
-                      </div>
-                    )}
+                    <Badge 
+                      variant="default" 
+                      className={
+                        evaluation.lead_profile.profile_name === 'Documaster' 
+                          ? 'bg-blue-600' 
+                          : 'bg-green-600'
+                      }
+                    >
+                      {evaluation.total_score}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
