@@ -40,9 +40,9 @@ interface Profile {
 
 interface Combination {
   id: string | null;
-  type: 'solo' | 'lead_partner' | 'partner_led';
-  lead_profile: Profile;
-  partner_profile: Profile | null;
+  type: 'solo' | 'partner_only';
+  profile: Profile;
+  profile_id: string;
 }
 
 interface Tender {
@@ -130,52 +130,29 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     return;
   }
 
-  // Build combinations - solo + all partner combinations
+  // Build combinations - solo for own profile + partner_only for each partner
   const combinations: Combination[] = [];
 
-  // Solo combination
+  // Add solo combination (own profile)
   combinations.push({
     id: null,
     type: 'solo',
-    lead_profile: ownProfile as any,
-    partner_profile: null
+    profile: ownProfile as any,
+    profile_id: ownProfile.id
   });
 
-  // Fetch partner graph combinations (exclude solo as we already added it)
-  const { data: partnerGraphs, error: graphError } = await supabase
-    .from('partner_graph')
-    .select('id, combination_type, lead_profile_id, partner_profile_id')
-    .eq('organization_id', orgId);
-
-  if (graphError) {
-    console.error('Error fetching partner graphs:', graphError);
-  }
-  console.log(`Found ${partnerGraphs?.length || 0} partner graph rows`);
-  if (partnerGraphs) {
-    partnerGraphs.forEach((g: any) => console.log(`Graph: ${g.combination_type} (id: ${g.id})`));
+  // Add partner_only combinations (one for each partner profile)
+  const partnerProfiles = profiles.filter((p: any) => !p.is_own_profile);
+  for (const partnerProfile of partnerProfiles) {
+    combinations.push({
+      id: partnerProfile.id,
+      type: 'partner_only',
+      profile: partnerProfile as any,
+      profile_id: partnerProfile.id
+    });
   }
 
-  if (partnerGraphs && partnerGraphs.length > 0) {
-    for (const graph of partnerGraphs) {
-      console.log(`Processing graph: ${graph.combination_type}, lead: ${graph.lead_profile_id}, partner: ${graph.partner_profile_id}`);
-      const leadProfile = profiles.find((p: any) => p.id === graph.lead_profile_id);
-      const partnerProfile = profiles.find((p: any) => p.id === graph.partner_profile_id);
-      
-      if (leadProfile && partnerProfile) {
-        console.log(`✓ Adding ${graph.combination_type}: ${leadProfile.profile_name} + ${partnerProfile.profile_name}`);
-        combinations.push({
-          id: graph.id,
-          type: graph.combination_type,
-          lead_profile: leadProfile as any,
-          partner_profile: partnerProfile as any
-        });
-      } else {
-        console.log(`✗ Missing profiles for ${graph.id}: lead=${!!leadProfile}, partner=${!!partnerProfile}`);
-      }
-    }
-  }
-
-  console.log(`Built ${combinations.length} combinations (1 solo + ${combinations.length - 1} partner combinations)`);
+  console.log(`Built ${combinations.length} combinations (1 solo + ${partnerProfiles.length} partner_only)`);
 
   // Fetch tenders for this org
   const { data: tenders, error: tendersError } = await supabase
@@ -216,16 +193,14 @@ async function evaluateTenderCombination(
   const descriptionText = tender.body.toLowerCase();
   const cpvCodes = tender.cpv_codes || [];
 
-  // Collect minimum requirements from both profiles, tracking source
-  const leadMinReqs = combination.lead_profile.minimum_requirements || [];
-  const partnerMinReqs = combination.partner_profile?.minimum_requirements || [];
+  // Get minimum requirements from the profile
+  const minReqs = combination.profile.minimum_requirements || [];
 
   // Step 1: Qualification - check requirements
   const metMinReqs: any[] = [];
   const missingMinReqs: string[] = [];
 
-  // Check lead profile requirements
-  for (const req of leadMinReqs) {
+  for (const req of minReqs) {
     const keyword = req.keyword.toLowerCase();
     let foundIn: string | null = null;
 
@@ -238,43 +213,14 @@ async function evaluateTenderCombination(
     }
 
     if (foundIn) {
-      metMinReqs.push({ keyword: req.keyword, found_in: foundIn, source: 'lead' });
+      metMinReqs.push({ keyword: req.keyword, found_in: foundIn });
     } else {
       missingMinReqs.push(req.keyword);
     }
   }
 
-  // Check partner profile requirements
-  for (const req of partnerMinReqs) {
-    const keyword = req.keyword.toLowerCase();
-    let foundIn: string | null = null;
-
-    if (titleText.includes(keyword)) {
-      foundIn = 'title';
-    } else if (descriptionText.includes(keyword)) {
-      foundIn = 'description';
-    } else if (cpvCodes.some(code => code.toLowerCase().includes(keyword))) {
-      foundIn = 'cpv';
-    }
-
-    if (foundIn) {
-      metMinReqs.push({ keyword: req.keyword, found_in: foundIn, source: 'partner' });
-    } else {
-      missingMinReqs.push(req.keyword);
-    }
-  }
-
-  // Determine if requirements are met based on combination type
-  let allMinimumRequirementsMet = false;
-  if (combination.type === 'solo') {
-    // Solo: at least 1 minimum requirement met
-    allMinimumRequirementsMet = metMinReqs.length > 0;
-  } else {
-    // Partner combination: at least 1 from lead AND 1 from partner
-    const leadMet = metMinReqs.filter(r => r.source === 'lead').length > 0;
-    const partnerMet = metMinReqs.filter(r => r.source === 'partner').length > 0;
-    allMinimumRequirementsMet = leadMet && partnerMet;
-  }
+  // At least 1 minimum requirement must be met
+  const allMinimumRequirementsMet = metMinReqs.length > 0;
 
   // If minimum requirements not met (none found), score is 0
   if (!allMinimumRequirementsMet) {
@@ -285,8 +231,8 @@ async function evaluateTenderCombination(
         organization_id: orgId,
         combination_id: combination.id,
         combination_type: combination.type,
-        lead_profile_id: combination.lead_profile.id,
-        partner_profile_id: combination.partner_profile?.id || null,
+        lead_profile_id: combination.profile_id,
+        partner_profile_id: null,
         all_minimum_requirements_met: false,
         met_minimum_requirements: metMinReqs,
         missing_minimum_requirements: missingMinReqs,
@@ -311,8 +257,7 @@ async function evaluateTenderCombination(
   let supportScore = 0;
   const matchedSupportKeywords: any[] = [];
 
-  // Check lead support keywords
-  for (const kw of (combination.lead_profile.support_keywords || [])) {
+  for (const kw of (combination.profile.support_keywords || [])) {
     const keyword = kw.keyword.toLowerCase();
     let foundIn: string | null = null;
     let weight = kw.weight;
@@ -330,36 +275,8 @@ async function evaluateTenderCombination(
         keyword: kw.keyword,
         weight: kw.weight,
         found_in: foundIn,
-        effective_weight: weight,
-        source: 'lead'
+        effective_weight: weight
       });
-    }
-  }
-
-  // Check partner support keywords
-  if (combination.partner_profile) {
-    for (const kw of (combination.partner_profile.support_keywords || [])) {
-      const keyword = kw.keyword.toLowerCase();
-      let foundIn: string | null = null;
-      let weight = kw.weight;
-
-      if (titleText.includes(keyword)) {
-        foundIn = 'title';
-        weight *= TITLE_WEIGHT_MULTIPLIER;
-      } else if (descriptionText.includes(keyword)) {
-        foundIn = 'description';
-      }
-
-      if (foundIn) {
-        supportScore += weight;
-        matchedSupportKeywords.push({
-          keyword: kw.keyword,
-          weight: kw.weight,
-          found_in: foundIn,
-          effective_weight: weight,
-          source: 'partner'
-        });
-      }
     }
   }
 
@@ -367,14 +284,7 @@ async function evaluateTenderCombination(
   let negativeScore = 0;
   const matchedNegativeKeywords: any[] = [];
 
-  const allNegativeKeywords = [
-    ...(combination.lead_profile.negative_keywords || [])
-  ];
-  if (combination.partner_profile) {
-    allNegativeKeywords.push(...(combination.partner_profile.negative_keywords || []));
-  }
-
-  for (const kw of allNegativeKeywords) {
+  for (const kw of (combination.profile.negative_keywords || [])) {
     const keyword = kw.keyword.toLowerCase();
     let foundIn: string | null = null;
     let weight = kw.weight;
@@ -401,14 +311,7 @@ async function evaluateTenderCombination(
   let cpvScore = 0;
   const matchedCpvCodes: any[] = [];
 
-  const allCpvCodes = [
-    ...(combination.lead_profile.cpv_codes || [])
-  ];
-  if (combination.partner_profile) {
-    allCpvCodes.push(...(combination.partner_profile.cpv_codes || []));
-  }
-
-  for (const cpv of allCpvCodes) {
+  for (const cpv of (combination.profile.cpv_codes || [])) {
     const code = cpv.cpv_code;
     if (cpvCodes.some(tenderCode => tenderCode.startsWith(code))) {
       cpvScore += cpv.weight;
@@ -419,20 +322,8 @@ async function evaluateTenderCombination(
     }
   }
 
-  // Step 5: Synergy bonus - only if combination covers multiple distinct areas
-  let synergyBonus = 0;
-  if (combination.partner_profile && metMinReqs.length >= 2) {
-    // Check if minimum requirements come from different profiles
-    const leadMinReqs = combination.lead_profile.minimum_requirements?.map(r => r.keyword.toLowerCase()) || [];
-    const partnerMinReqs = combination.partner_profile.minimum_requirements?.map(r => r.keyword.toLowerCase()) || [];
-    
-    const leadMatches = metMinReqs.filter(m => leadMinReqs.includes(m.keyword.toLowerCase())).length;
-    const partnerMatches = metMinReqs.filter(m => partnerMinReqs.includes(m.keyword.toLowerCase())).length;
-    
-    if (leadMatches > 0 && partnerMatches > 0) {
-      synergyBonus = 2; // Small bonus for covering multiple areas
-    }
-  }
+  // No synergy bonus needed for single profile evaluations
+  const synergyBonus = 0;
 
   // Score = number of minimum requirements met (1 point per requirement)
   const totalScore = metMinReqs.length;
@@ -457,8 +348,8 @@ async function evaluateTenderCombination(
       organization_id: orgId,
       combination_id: combination.id,
       combination_type: combination.type,
-      lead_profile_id: combination.lead_profile.id,
-      partner_profile_id: combination.partner_profile?.id || null,
+      lead_profile_id: combination.profile_id,
+      partner_profile_id: null,
       all_minimum_requirements_met: true,
       met_minimum_requirements: metMinReqs,
       missing_minimum_requirements: [],

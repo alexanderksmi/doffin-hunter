@@ -129,27 +129,15 @@ export const RadarTab = () => {
       { id: 'solo', label: `Solo (${ownProfile.profile_name})`, type: 'solo' }
     ];
 
-    const { data: graphs } = await supabase
-      .from('partner_graph')
-      .select(`
-        id,
-        combination_type,
-        lead_profile:lead_profile_id(profile_name),
-        partner_profile:partner_profile_id(profile_name)
-      `)
-      .eq('organization_id', organizationId);
-
-    if (graphs) {
-      graphs.forEach((g: any) => {
-        // Skip if profiles are missing
-        if (!g.lead_profile || !g.partner_profile) return;
-        
-        const label = g.combination_type === 'lead_partner' 
-          ? `${g.lead_profile.profile_name} leder + ${g.partner_profile.profile_name}`
-          : `${g.partner_profile.profile_name} leder + ${g.lead_profile.profile_name}`;
-        combos.push({ id: g.id, label, type: g.combination_type });
+    // Add partner-only combinations
+    const partnerProfiles = profiles.filter(p => !p.is_own_profile);
+    partnerProfiles.forEach(partner => {
+      combos.push({ 
+        id: partner.id, 
+        label: `Kun ${partner.profile_name}`, 
+        type: 'partner_only' 
       });
-    }
+    });
 
     setCombinations(combos);
   };
@@ -216,9 +204,12 @@ export const RadarTab = () => {
     // Apply combination filter
     if (selectedCombination !== 'all') {
       if (selectedCombination === 'solo') {
-        filteredEvals = filteredEvals.filter((e: any) => e.combination_type === 'solo');
+        filteredEvals = filteredEvals.filter((e: any) => e.combination_type === 'solo' && e.combination_id === null);
       } else {
-        filteredEvals = filteredEvals.filter((e: any) => e.combination_id === selectedCombination);
+        // Filter by combination_id for partner_only
+        filteredEvals = filteredEvals.filter((e: any) => 
+          e.combination_type === 'partner_only' && e.combination_id === selectedCombination
+        );
       }
     }
 
@@ -228,14 +219,14 @@ export const RadarTab = () => {
 
   const getCombinationLabel = (evaluation: TenderEvaluation) => {
     if (evaluation.combination_type === 'solo') {
-      return evaluation.lead_profile.profile_name;
+      return `Solo (${evaluation.lead_profile.profile_name})`;
     }
     
-    if (evaluation.combination_type === 'lead_partner') {
-      return `${evaluation.lead_profile.profile_name} (lead) + ${evaluation.partner_profile?.profile_name || '?'}`;
+    if (evaluation.combination_type === 'partner_only') {
+      return `Kun ${evaluation.lead_profile.profile_name}`;
     }
     
-    return `${evaluation.partner_profile?.profile_name || '?'} (lead) + ${evaluation.lead_profile.profile_name}`;
+    return evaluation.lead_profile.profile_name;
   };
 
   const formatDate = (dateString: string) => {
