@@ -141,18 +141,18 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     profile_id: ownProfile.id
   });
 
-  // Add each partner profile as separate evaluation
+  // Add each partner profile as separate evaluation (also with id: null since they're not combinations)
   const partnerProfiles = profiles.filter((p: any) => !p.is_own_profile);
   for (const partner of partnerProfiles) {
     combinations.push({
-      id: partner.id,
+      id: null,
       type: 'solo',
       profile: partner as any,
       profile_id: partner.id
     });
   }
 
-  console.log(`Built ${combinations.length} combinations (1 solo + ${partnerProfiles.length} partners)`);
+  console.log(`Built ${combinations.length} combinations (1 own + ${partnerProfiles.length} partners)`);
 
   // Fetch tenders for this org
   const { data: tenders, error: tendersError } = await supabase
@@ -340,13 +340,13 @@ async function evaluateTenderCombination(
     explanation = 'Ingen minimumskrav oppfylt';
   }
 
-  // Save evaluation
+  // Save evaluation (combination_id is always NULL for solo profile evaluations)
   const { error: saveError } = await supabase
     .from('tender_evaluations')
     .upsert({
       tender_id: tender.id,
       organization_id: orgId,
-      combination_id: combination.id,
+      combination_id: null,
       combination_type: 'solo',
       lead_profile_id: combination.profile_id,
       partner_profile_id: null,
@@ -363,10 +363,10 @@ async function evaluateTenderCombination(
       matched_cpv_codes: matchedCpvCodes,
       explanation: explanation
     }, {
-      onConflict: 'tender_id,organization_id,combination_id'
+      onConflict: 'tender_id,organization_id,lead_profile_id'
     });
 
   if (saveError) {
-    console.error(`ERROR saving evaluation:`, saveError);
+    console.error(`ERROR saving evaluation for profile ${combination.profile_id}:`, saveError);
   }
 }
