@@ -130,10 +130,10 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     return;
   }
 
-  // Build combinations - ONLY solo (own profile) for now
+  // Build combinations - solo + all partner combinations
   const combinations: Combination[] = [];
 
-  // Solo combination only
+  // Solo combination
   combinations.push({
     id: null,
     type: 'solo',
@@ -141,7 +141,29 @@ async function evaluateOrganization(supabase: any, orgId: string) {
     partner_profile: null
   });
 
-  console.log(`Built ${combinations.length} combinations`);
+  // Fetch partner graph combinations
+  const { data: partnerGraphs, error: graphError } = await supabase
+    .from('partner_graph')
+    .select('id, combination_type, lead_profile_id, partner_profile_id')
+    .eq('organization_id', orgId);
+
+  if (!graphError && partnerGraphs && partnerGraphs.length > 0) {
+    for (const graph of partnerGraphs) {
+      const leadProfile = profiles.find((p: any) => p.id === graph.lead_profile_id);
+      const partnerProfile = profiles.find((p: any) => p.id === graph.partner_profile_id);
+      
+      if (leadProfile && partnerProfile) {
+        combinations.push({
+          id: graph.id,
+          type: graph.combination_type as 'lead_partner' | 'partner_lead',
+          lead_profile: leadProfile as any,
+          partner_profile: partnerProfile as any
+        });
+      }
+    }
+  }
+
+  console.log(`Built ${combinations.length} combinations (1 solo + ${combinations.length - 1} partner combinations)`);
 
   // Fetch tenders for this org
   const { data: tenders, error: tendersError } = await supabase
@@ -182,19 +204,16 @@ async function evaluateTenderCombination(
   const descriptionText = tender.body.toLowerCase();
   const cpvCodes = tender.cpv_codes || [];
 
-  // Collect all minimum requirements from both profiles
-  const allMinReqs: MinimumRequirement[] = [
-    ...(combination.lead_profile.minimum_requirements || [])
-  ];
-  if (combination.partner_profile) {
-    allMinReqs.push(...(combination.partner_profile.minimum_requirements || []));
-  }
+  // Collect minimum requirements from both profiles, tracking source
+  const leadMinReqs = combination.lead_profile.minimum_requirements || [];
+  const partnerMinReqs = combination.partner_profile?.minimum_requirements || [];
 
-  // Step 1: Qualification - ALL minimum requirements must be present
+  // Step 1: Qualification - check requirements
   const metMinReqs: any[] = [];
   const missingMinReqs: string[] = [];
 
-  for (const req of allMinReqs) {
+  // Check lead profile requirements
+  for (const req of leadMinReqs) {
     const keyword = req.keyword.toLowerCase();
     let foundIn: string | null = null;
 
@@ -207,14 +226,43 @@ async function evaluateTenderCombination(
     }
 
     if (foundIn) {
-      metMinReqs.push({ keyword: req.keyword, found_in: foundIn });
+      metMinReqs.push({ keyword: req.keyword, found_in: foundIn, source: 'lead' });
     } else {
       missingMinReqs.push(req.keyword);
     }
   }
 
-  // Changed logic: At least ONE minimum requirement must be met
-  const allMinimumRequirementsMet = metMinReqs.length > 0;
+  // Check partner profile requirements
+  for (const req of partnerMinReqs) {
+    const keyword = req.keyword.toLowerCase();
+    let foundIn: string | null = null;
+
+    if (titleText.includes(keyword)) {
+      foundIn = 'title';
+    } else if (descriptionText.includes(keyword)) {
+      foundIn = 'description';
+    } else if (cpvCodes.some(code => code.toLowerCase().includes(keyword))) {
+      foundIn = 'cpv';
+    }
+
+    if (foundIn) {
+      metMinReqs.push({ keyword: req.keyword, found_in: foundIn, source: 'partner' });
+    } else {
+      missingMinReqs.push(req.keyword);
+    }
+  }
+
+  // Determine if requirements are met based on combination type
+  let allMinimumRequirementsMet = false;
+  if (combination.type === 'solo') {
+    // Solo: at least 1 minimum requirement met
+    allMinimumRequirementsMet = metMinReqs.length > 0;
+  } else {
+    // Partner combination: at least 1 from lead AND 1 from partner
+    const leadMet = metMinReqs.filter(r => r.source === 'lead').length > 0;
+    const partnerMet = metMinReqs.filter(r => r.source === 'partner').length > 0;
+    allMinimumRequirementsMet = leadMet && partnerMet;
+  }
 
   // If minimum requirements not met (none found), score is 0
   if (!allMinimumRequirementsMet) {
@@ -251,14 +299,8 @@ async function evaluateTenderCombination(
   let supportScore = 0;
   const matchedSupportKeywords: any[] = [];
 
-  const allSupportKeywords = [
-    ...(combination.lead_profile.support_keywords || [])
-  ];
-  if (combination.partner_profile) {
-    allSupportKeywords.push(...(combination.partner_profile.support_keywords || []));
-  }
-
-  for (const kw of allSupportKeywords) {
+  // Check lead support keywords
+  for (const kw of (combination.lead_profile.support_keywords || [])) {
     const keyword = kw.keyword.toLowerCase();
     let foundIn: string | null = null;
     let weight = kw.weight;
@@ -276,8 +318,36 @@ async function evaluateTenderCombination(
         keyword: kw.keyword,
         weight: kw.weight,
         found_in: foundIn,
-        effective_weight: weight
+        effective_weight: weight,
+        source: 'lead'
       });
+    }
+  }
+
+  // Check partner support keywords
+  if (combination.partner_profile) {
+    for (const kw of (combination.partner_profile.support_keywords || [])) {
+      const keyword = kw.keyword.toLowerCase();
+      let foundIn: string | null = null;
+      let weight = kw.weight;
+
+      if (titleText.includes(keyword)) {
+        foundIn = 'title';
+        weight *= TITLE_WEIGHT_MULTIPLIER;
+      } else if (descriptionText.includes(keyword)) {
+        foundIn = 'description';
+      }
+
+      if (foundIn) {
+        supportScore += weight;
+        matchedSupportKeywords.push({
+          keyword: kw.keyword,
+          weight: kw.weight,
+          found_in: foundIn,
+          effective_weight: weight,
+          source: 'partner'
+        });
+      }
     }
   }
 

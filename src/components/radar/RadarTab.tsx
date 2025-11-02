@@ -40,6 +40,9 @@ export const RadarTab = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
   const [combinations, setCombinations] = useState<any[]>([]);
+  const [minScore, setMinScore] = useState<string>("1");
+  const [deadlineFilter, setDeadlineFilter] = useState<string>("all");
+  const [publishedFilter, setPublishedFilter] = useState<string>("all");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,7 +86,7 @@ export const RadarTab = () => {
     if (organizationId) {
       fetchEvaluations();
     }
-  }, [selectedCombination, organizationId]);
+  }, [selectedCombination, minScore, deadlineFilter, publishedFilter, organizationId]);
 
   // Subscribe to realtime updates for tender evaluations
   useEffect(() => {
@@ -180,12 +183,34 @@ export const RadarTab = () => {
       return;
     }
 
-    // Filter out expired tenders on the client side
+    // Filter evaluations
     const now = new Date();
     let filteredEvals = (allEvals || []).filter((evaluation: any) => {
+      // Filter by deadline
       const deadline = evaluation.tender?.deadline;
-      if (!deadline) return true; // Keep tenders without deadline
-      return new Date(deadline) > now; // Keep only non-expired tenders
+      if (deadlineFilter === 'expired') {
+        if (!deadline || new Date(deadline) > now) return false;
+      } else if (deadlineFilter === 'active') {
+        if (!deadline || new Date(deadline) <= now) return false;
+      }
+      // If 'all', include all regardless of deadline status
+      
+      // Filter by published date
+      const published = evaluation.tender?.published_date;
+      if (publishedFilter !== 'all' && published) {
+        const publishedDate = new Date(published);
+        const daysAgo = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (publishedFilter === '7days' && daysAgo > 7) return false;
+        if (publishedFilter === '14days' && daysAgo > 14) return false;
+        if (publishedFilter === '30days' && daysAgo > 30) return false;
+      }
+
+      // Filter by minimum score
+      const scoreThreshold = parseInt(minScore) || 0;
+      if (evaluation.total_score < scoreThreshold) return false;
+
+      return true;
     });
 
     // Apply combination filter
@@ -242,6 +267,50 @@ export const RadarTab = () => {
           </Select>
         </div>
 
+        <div className="flex items-center gap-2">
+          <Label>Min poeng:</Label>
+          <Select value={minScore} onValueChange={setMinScore}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1+</SelectItem>
+              <SelectItem value="2">2+</SelectItem>
+              <SelectItem value="3">3+</SelectItem>
+              <SelectItem value="4">4+</SelectItem>
+              <SelectItem value="5">5+</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Label>Frist:</Label>
+          <Select value={deadlineFilter} onValueChange={setDeadlineFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle</SelectItem>
+              <SelectItem value="active">Aktive</SelectItem>
+              <SelectItem value="expired">Utgåtte</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Label>Publisert:</Label>
+          <Select value={publishedFilter} onValueChange={setPublishedFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle</SelectItem>
+              <SelectItem value="7days">Siste 7 dager</SelectItem>
+              <SelectItem value="14days">Siste 14 dager</SelectItem>
+              <SelectItem value="30days">Siste 30 dager</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="ml-auto text-sm text-muted-foreground">
           {evaluations.length} anbud
@@ -299,14 +368,32 @@ export const RadarTab = () => {
                     {getCombinationLabel(evaluation)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={evaluation.all_minimum_requirements_met ? "default" : "secondary"}>
-                      {evaluation.total_score}
-                    </Badge>
+                    {evaluation.combination_type === 'solo' ? (
+                      <Badge variant={evaluation.all_minimum_requirements_met ? "default" : "secondary"}>
+                        {evaluation.total_score}
+                      </Badge>
+                    ) : (
+                      <div className="flex gap-1">
+                        <Badge variant="default" className="bg-blue-600">
+                          {(evaluation.met_minimum_requirements as any[]).filter((r: any) => r.source === 'lead').length}
+                        </Badge>
+                        <Badge variant="default" className="bg-green-600">
+                          {(evaluation.met_minimum_requirements as any[]).filter((r: any) => r.source === 'partner').length}
+                        </Badge>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {(evaluation.met_minimum_requirements as any[]).map((req: any, idx: number) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
+                        <Badge 
+                          key={idx} 
+                          variant="outline" 
+                          className={`text-xs ${
+                            req.source === 'partner' ? 'border-green-600 text-green-600' : 
+                            req.source === 'lead' && evaluation.combination_type !== 'solo' ? 'border-blue-600 text-blue-600' : ''
+                          }`}
+                        >
                           {req.keyword}
                         </Badge>
                       ))}
