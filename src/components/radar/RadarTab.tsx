@@ -40,7 +40,6 @@ export const RadarTab = () => {
   const [evaluations, setEvaluations] = useState<TenderEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
-  const [noiseFilter, setNoiseFilter] = useState(true);
   const [combinations, setCombinations] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
@@ -56,7 +55,7 @@ export const RadarTab = () => {
     if (organizationId) {
       fetchEvaluations();
     }
-  }, [selectedCombination, noiseFilter, organizationId]);
+  }, [selectedCombination, organizationId]);
 
   const fetchCombinations = async () => {
     const { data: profiles } = await supabase
@@ -116,12 +115,8 @@ export const RadarTab = () => {
         partner_profile:partner_profile_id (profile_name)
       `)
       .eq('organization_id', organizationId)
+      .gte('total_score', 1)
       .order('total_score', { ascending: false });
-
-    // Apply noise filter
-    if (noiseFilter) {
-      query = query.eq('all_minimum_requirements_met', true);
-    }
 
     // Apply combination filter
     if (selectedCombination !== 'all') {
@@ -213,17 +208,6 @@ export const RadarTab = () => {
           </Select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Switch
-            id="noise-filter"
-            checked={noiseFilter}
-            onCheckedChange={setNoiseFilter}
-          />
-          <Label htmlFor="noise-filter">
-            Støybryter (kun fulle treff)
-          </Label>
-        </div>
-
         <Button
           onClick={handleRefresh}
           disabled={refreshing}
@@ -264,15 +248,7 @@ export const RadarTab = () => {
             ) : evaluations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  <div className="space-y-2">
-                    <p className="font-medium">Ingen anbud funnet</p>
-                    <p className="text-sm">
-                      {noiseFilter 
-                        ? "Minimumskrav er strenge dørvakter. Prøv å slå av støybryteren for å se nær-treff."
-                        : "Ingen anbud matcher dine profiler ennå."
-                      }
-                    </p>
-                  </div>
+                  <p className="font-medium">Ingen anbud funnet med minst 1 oppfylt minimumskrav</p>
                 </TableCell>
               </TableRow>
             ) : (

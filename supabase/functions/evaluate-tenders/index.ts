@@ -352,28 +352,17 @@ async function evaluateTenderCombination(
     }
   }
 
-  const totalScore = supportScore + negativeScore + cpvScore + synergyBonus;
+  // Score = number of minimum requirements met (1 point per requirement)
+  const totalScore = metMinReqs.length;
 
-  // Build explanation
+  // Build explanation showing which minimum requirements were met
   const explanationParts: string[] = [];
   
-  matchedSupportKeywords.forEach(kw => {
-    explanationParts.push(`${kw.keyword}(+${kw.effective_weight})`);
+  metMinReqs.forEach(req => {
+    explanationParts.push(`${req.keyword}`);
   });
-  
-  matchedNegativeKeywords.forEach(kw => {
-    explanationParts.push(`${kw.keyword}(${kw.effective_weight})`);
-  });
-  
-  if (cpvScore > 0) {
-    explanationParts.push(`CPV(+${cpvScore})`);
-  }
-  
-  if (synergyBonus > 0) {
-    explanationParts.push(`synergi(+${synergyBonus})`);
-  }
 
-  const explanation = `${explanationParts.join(', ')} → ${totalScore} poeng`;
+  const explanation = `Oppfylt: ${explanationParts.join(', ')} (${totalScore} poeng)`;
 
   // Save evaluation
   await supabase
