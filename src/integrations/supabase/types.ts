@@ -627,7 +627,11 @@ export type Database = {
     Enums: {
       app_role: "admin" | "editor" | "viewer"
       keyword_category: "positive" | "negative"
-      partner_combination_type: "solo" | "lead_partner" | "partner_led"
+      partner_combination_type:
+        | "solo"
+        | "lead_partner"
+        | "partner_led"
+        | "partner_only"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -757,7 +761,12 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "editor", "viewer"],
       keyword_category: ["positive", "negative"],
-      partner_combination_type: ["solo", "lead_partner", "partner_led"],
+      partner_combination_type: [
+        "solo",
+        "lead_partner",
+        "partner_led",
+        "partner_only",
+      ],
     },
   },
 } as const
