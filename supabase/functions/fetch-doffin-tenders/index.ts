@@ -105,9 +105,9 @@ serve(async (req) => {
       throw new Error('DOFFIN_API_KEY is not configured');
     }
 
-    // Build search parameters - limit to MAX_TENDERS_PER_SYNC
+    // Build search parameters
     const params = new URLSearchParams({
-      numHitsPerPage: String(Math.min(MAX_TENDERS_PER_SYNC, 100)),
+      numHitsPerPage: '300',
       page: '1',
       sortBy: 'PUBLICATION_DATE_DESC'
     });
