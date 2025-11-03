@@ -189,25 +189,25 @@ export const RadarTab = () => {
         savedCount = finalSync?.saved_count || 0;
       }
 
-      // Only trigger evaluation if there are new tenders
+      // Always trigger full re-evaluation to ensure correct scoring
+      toast({
+        title: "Evaluerer anbud",
+        description: "Re-evaluerer alle anbud med oppdatert logikk...",
+      });
+
+      await supabase.functions.invoke('evaluate-tenders', {
+        body: { mode: 'full' }
+      });
+      
       if (savedCount > 0) {
         toast({
-          title: "Evaluerer anbud",
-          description: `Beregner relevans for ${savedCount} nye anbud...`,
-        });
-
-        await supabase.functions.invoke('evaluate-tenders', {
-          body: { mode: 'incremental' }
-        });
-        
-        toast({
           title: "Synkronisering fullført",
-          description: `${savedCount} nye anbud er evaluert`,
+          description: `${savedCount} nye anbud hentet og alle anbud re-evaluert`,
         });
       } else {
         toast({
           title: "Synkronisering fullført",
-          description: "Ingen nye anbud funnet",
+          description: "Alle anbud re-evaluert med oppdatert logikk",
         });
       }
 
