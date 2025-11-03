@@ -41,8 +41,7 @@ export const RadarTab = () => {
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
   const [combinations, setCombinations] = useState<any[]>([]);
   const [minScore, setMinScore] = useState<string>("1");
-  const [deadlineFilter, setDeadlineFilter] = useState<string>("all");
-  const [publishedFilter, setPublishedFilter] = useState<string>("all");
+  const [viewFilter, setViewFilter] = useState<string>("published_desc");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -86,7 +85,7 @@ export const RadarTab = () => {
     if (organizationId) {
       fetchEvaluations();
     }
-  }, [selectedCombination, minScore, deadlineFilter, publishedFilter, organizationId]);
+  }, [selectedCombination, minScore, viewFilter, organizationId]);
 
   // Subscribe to realtime updates for tender evaluations
   useEffect(() => {
@@ -125,29 +124,36 @@ export const RadarTab = () => {
     const ownProfile = profiles.find(p => p.is_own_profile);
     if (!ownProfile) return;
 
-    const combos: any[] = [
-      { id: 'own', profileId: ownProfile.id, label: `Kun egne (${ownProfile.profile_name})`, type: 'own' }
-    ];
+    const combos: any[] = [];
 
-    // Add partner profiles
+    // Add combination matches first (both own AND each partner)
     const partnerProfiles = profiles.filter(p => !p.is_own_profile);
-    partnerProfiles.forEach(partner => {
-      combos.push({ 
-        id: `partner_${partner.id}`,
-        profileId: partner.id,
-        label: `Kun ${partner.profile_name}`, 
-        type: 'partner'
-      });
-    });
-
-    // Add combination matches (both own AND each partner)
     partnerProfiles.forEach(partner => {
       combos.push({
         id: `combo_${ownProfile.id}_${partner.id}`,
         ownProfileId: ownProfile.id,
         partnerProfileId: partner.id,
         label: `${ownProfile.profile_name} + ${partner.profile_name}`,
-        type: 'combination'
+        type: 'combination',
+        ownProfileName: ownProfile.profile_name,
+        partnerProfileName: partner.profile_name
+      });
+    });
+
+    combos.push({ 
+      id: 'own', 
+      profileId: ownProfile.id, 
+      label: `Kun ${ownProfile.profile_name}`, 
+      type: 'own' 
+    });
+
+    // Add partner profiles
+    partnerProfiles.forEach(partner => {
+      combos.push({ 
+        id: `partner_${partner.id}`,
+        profileId: partner.id,
+        label: `Kun ${partner.profile_name}`, 
+        type: 'partner'
       });
     });
 
@@ -190,29 +196,13 @@ export const RadarTab = () => {
       }
 
       const filtered = (allEvals || []).filter((evaluation: any) => {
-        const deadline = evaluation.tender?.deadline;
-        if (deadlineFilter === 'expired') {
-          if (!deadline || new Date(deadline) > now) return false;
-        } else if (deadlineFilter === 'active') {
-          if (!deadline || new Date(deadline) <= now) return false;
-        }
-        
-        const published = evaluation.tender?.published_date;
-        if (publishedFilter !== 'all' && published) {
-          const publishedDate = new Date(published);
-          const daysAgo = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
-          
-          if (publishedFilter === '7days' && daysAgo > 7) return false;
-          if (publishedFilter === '14days' && daysAgo > 14) return false;
-          if (publishedFilter === '30days' && daysAgo > 30) return false;
-        }
-
         if (evaluation.total_score < scoreThreshold) return false;
-
         return true;
       });
 
-      setEvaluations(filtered as any);
+      // Apply sorting based on viewFilter
+      const sorted = applySorting(filtered, viewFilter);
+      setEvaluations(sorted as any);
       setLoading(false);
       return;
     }
@@ -253,29 +243,13 @@ export const RadarTab = () => {
       }
 
       const filtered = (evals || []).filter((evaluation: any) => {
-        const deadline = evaluation.tender?.deadline;
-        if (deadlineFilter === 'expired') {
-          if (!deadline || new Date(deadline) > now) return false;
-        } else if (deadlineFilter === 'active') {
-          if (!deadline || new Date(deadline) <= now) return false;
-        }
-        
-        const published = evaluation.tender?.published_date;
-        if (publishedFilter !== 'all' && published) {
-          const publishedDate = new Date(published);
-          const daysAgo = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
-          
-          if (publishedFilter === '7days' && daysAgo > 7) return false;
-          if (publishedFilter === '14days' && daysAgo > 14) return false;
-          if (publishedFilter === '30days' && daysAgo > 30) return false;
-        }
-
         if (evaluation.total_score < scoreThreshold) return false;
-
         return true;
       });
 
-      setEvaluations(filtered as any);
+      // Apply sorting based on viewFilter
+      const sorted = applySorting(filtered, viewFilter);
+      setEvaluations(sorted as any);
       setLoading(false);
       return;
     }
@@ -331,38 +305,93 @@ export const RadarTab = () => {
       const partnerTenderIds = new Set((partnerEvals || []).map((e: any) => e.tender_id));
       const bothTenderIds = [...ownTenderIds].filter(id => partnerTenderIds.has(id));
 
-      // Get evaluations for matched tenders
-      const combinedEvals = (ownEvals || []).filter((e: any) => bothTenderIds.includes(e.tender_id));
+      // Merge evaluations for matched tenders
+      const combinedEvals = bothTenderIds.map(tenderId => {
+        const ownEval = ownEvals?.find((e: any) => e.tender_id === tenderId);
+        const partnerEval = partnerEvals?.find((e: any) => e.tender_id === tenderId);
+        
+        if (!ownEval || !partnerEval) return null;
+
+        // Merge met_minimum_requirements from both profiles
+        const ownReqs = ((ownEval.met_minimum_requirements as any) || []).map((req: any) => ({
+          ...req,
+          source: 'lead'
+        }));
+        const partnerReqs = ((partnerEval.met_minimum_requirements as any) || []).map((req: any) => ({
+          ...req,
+          source: 'partner'
+        }));
+
+        // Combine and remove duplicates based on keyword
+        const allReqs = [...ownReqs, ...partnerReqs];
+        const uniqueReqs = Array.from(
+          new Map(allReqs.map(req => [req.keyword.toLowerCase(), req])).values()
+        );
+
+        // Calculate combined score as the total number of unique met requirements
+        const combinedScore = uniqueReqs.length;
+
+        return {
+          ...ownEval,
+          met_minimum_requirements: uniqueReqs,
+          total_score: combinedScore,
+          combination_type: 'combination',
+          explanation: `${combo.ownProfileName}: ${ownReqs.length} krav, ${combo.partnerProfileName}: ${partnerReqs.length} krav`
+        };
+      }).filter(Boolean);
 
       const filtered = combinedEvals.filter((evaluation: any) => {
-        const deadline = evaluation.tender?.deadline;
-        if (deadlineFilter === 'expired') {
-          if (!deadline || new Date(deadline) > now) return false;
-        } else if (deadlineFilter === 'active') {
-          if (!deadline || new Date(deadline) <= now) return false;
-        }
-        
-        const published = evaluation.tender?.published_date;
-        if (publishedFilter !== 'all' && published) {
-          const publishedDate = new Date(published);
-          const daysAgo = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
-          
-          if (publishedFilter === '7days' && daysAgo > 7) return false;
-          if (publishedFilter === '14days' && daysAgo > 14) return false;
-          if (publishedFilter === '30days' && daysAgo > 30) return false;
-        }
-
-        if (evaluation.total_score < scoreThreshold) return false;
-
+        if (!evaluation || evaluation.total_score < scoreThreshold) return false;
         return true;
       });
 
-      setEvaluations(filtered as any);
+      // Apply sorting based on viewFilter
+      const sorted = applySorting(filtered, viewFilter);
+      setEvaluations(sorted as any);
       setLoading(false);
     }
   };
 
+  const applySorting = (evals: any[], sortType: string) => {
+    const sorted = [...evals];
+    
+    switch (sortType) {
+      case 'published_desc':
+        return sorted.sort((a, b) => {
+          const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
+          const dateB = b.tender?.published_date ? new Date(b.tender.published_date).getTime() : 0;
+          return dateB - dateA;
+        });
+      case 'published_asc':
+        return sorted.sort((a, b) => {
+          const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
+          const dateB = b.tender?.published_date ? new Date(b.tender.published_date).getTime() : 0;
+          return dateA - dateB;
+        });
+      case 'deadline_desc':
+        return sorted.sort((a, b) => {
+          const dateA = a.tender?.deadline ? new Date(a.tender.deadline).getTime() : Infinity;
+          const dateB = b.tender?.deadline ? new Date(b.tender.deadline).getTime() : Infinity;
+          return dateB - dateA;
+        });
+      case 'deadline_asc':
+        return sorted.sort((a, b) => {
+          const dateA = a.tender?.deadline ? new Date(a.tender.deadline).getTime() : Infinity;
+          const dateB = b.tender?.deadline ? new Date(b.tender.deadline).getTime() : Infinity;
+          return dateA - dateB;
+        });
+      default:
+        return sorted;
+    }
+  };
+
   const getCombinationLabel = (evaluation: TenderEvaluation) => {
+    if (evaluation.combination_type === 'combination') {
+      const combo = combinations.find(c => c.type === 'combination');
+      if (combo) {
+        return `${combo.ownProfileName} + ${combo.partnerProfileName}`;
+      }
+    }
     return evaluation.lead_profile.profile_name;
   };
 
@@ -379,13 +408,13 @@ export const RadarTab = () => {
     <div className="space-y-4">
       <div className="flex gap-4 items-center flex-wrap">
         <div className="flex items-center gap-2">
-          <Label>Kombinasjon:</Label>
+          <Label>Filtrer:</Label>
           <Select value={selectedCombination} onValueChange={setSelectedCombination}>
             <SelectTrigger className="w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Alle kombinasjoner</SelectItem>
+              <SelectItem value="all">Alle treff</SelectItem>
               {combinations.map(combo => (
                 <SelectItem key={combo.id} value={combo.id}>
                   {combo.label}
@@ -412,30 +441,16 @@ export const RadarTab = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Label>Frist:</Label>
-          <Select value={deadlineFilter} onValueChange={setDeadlineFilter}>
-            <SelectTrigger className="w-32">
+          <Label>Visning:</Label>
+          <Select value={viewFilter} onValueChange={setViewFilter}>
+            <SelectTrigger className="w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Alle</SelectItem>
-              <SelectItem value="active">Aktive</SelectItem>
-              <SelectItem value="expired">Utgåtte</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Label>Publisert:</Label>
-          <Select value={publishedFilter} onValueChange={setPublishedFilter}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Alle</SelectItem>
-              <SelectItem value="7days">Siste 7 dager</SelectItem>
-              <SelectItem value="14days">Siste 14 dager</SelectItem>
-              <SelectItem value="30days">Siste 30 dager</SelectItem>
+              <SelectItem value="published_desc">Publiseringsdato: Ny til gammel</SelectItem>
+              <SelectItem value="published_asc">Publiseringsdato: Gammel til ny</SelectItem>
+              <SelectItem value="deadline_desc">Frist: Sen til snart (N/A er senest)</SelectItem>
+              <SelectItem value="deadline_asc">Frist: Snart til sen</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -452,7 +467,7 @@ export const RadarTab = () => {
               <TableHead className="w-12">Link</TableHead>
               <TableHead className="w-[30%]">Tittel</TableHead>
               <TableHead>Oppdragsgiver</TableHead>
-              <TableHead>Kombinasjon</TableHead>
+              <TableHead>Filtrer</TableHead>
               <TableHead className="w-16">Score</TableHead>
               <TableHead>Krav</TableHead>
               <TableHead>Forklaring</TableHead>
