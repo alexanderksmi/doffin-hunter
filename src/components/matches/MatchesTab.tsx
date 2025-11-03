@@ -29,6 +29,10 @@ type SavedTender = {
   evaluation: {
     total_score: number;
     met_minimum_requirements: any[];
+    combination_type: string;
+    lead_profile_id: string;
+    partner_profile_id: string | null;
+    partner_name?: string;
   };
 };
 
@@ -65,7 +69,10 @@ export const MatchesTab = () => {
           ),
           evaluation:evaluation_id (
             total_score,
-            met_minimum_requirements
+            met_minimum_requirements,
+            combination_type,
+            lead_profile_id,
+            partner_profile_id
           )
         `)
         .eq("organization_id", organizationId)
@@ -73,7 +80,31 @@ export const MatchesTab = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setSavedTenders(data as any || []);
+
+      // Fetch profile names for matches with partners
+      const dataWithProfiles = await Promise.all(
+        (data || []).map(async (saved: any) => {
+          if (saved.evaluation.combination_type === 'with_partner' && saved.evaluation.partner_profile_id) {
+            const { data: partnerProfile } = await supabase
+              .from("company_profiles")
+              .select("profile_name")
+              .eq("id", saved.evaluation.partner_profile_id)
+              .single();
+            
+            return {
+              ...saved,
+              evaluation: {
+                ...saved.evaluation,
+                partner_name: partnerProfile?.profile_name
+              }
+            };
+          }
+          return saved;
+        })
+      );
+
+      setSavedTenders(dataWithProfiles as any);
+
     } catch (error) {
       console.error("Error loading saved tenders:", error);
       toast({
@@ -134,8 +165,9 @@ export const MatchesTab = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">Link</TableHead>
-              <TableHead className="w-[30%]">Tittel</TableHead>
+              <TableHead className="w-[25%]">Tittel</TableHead>
               <TableHead>Oppdragsgiver</TableHead>
+              <TableHead>Partner</TableHead>
               <TableHead className="w-16">Score</TableHead>
               <TableHead>Relevans</TableHead>
               <TableHead>Tidskritisk</TableHead>
@@ -146,7 +178,7 @@ export const MatchesTab = () => {
           <TableBody>
             {savedTenders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <Bookmark className="h-8 w-8 text-muted-foreground/50" />
                     <p className="font-medium">Ingen lagrede anbud</p>
@@ -172,6 +204,13 @@ export const MatchesTab = () => {
                   </TableCell>
                   <TableCell className="text-sm">
                     {saved.tender.client || "N/A"}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {saved.evaluation.combination_type === 'with_partner' ? (
+                      <Badge variant="secondary">{saved.evaluation.partner_name || "Partner"}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant="default">

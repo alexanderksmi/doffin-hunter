@@ -46,11 +46,49 @@ export const SavedTenderDialog = ({
     savedTender.time_criticality || "middels"
   );
   const [saving, setSaving] = useState(false);
+  const [leadProfileKeywords, setLeadProfileKeywords] = useState<any[]>([]);
+  const [partnerProfileKeywords, setPartnerProfileKeywords] = useState<any[]>([]);
 
   useEffect(() => {
     setComments(savedTender.comments || "");
     setRelevanceScore(savedTender.relevance_score || 50);
     setTimeCriticality(savedTender.time_criticality || "middels");
+    
+    // Load profile keywords
+    const loadProfileKeywords = async () => {
+      // Get keywords from lead profile
+      if (savedTender.evaluation.lead_profile_id) {
+        const { data: leadKeywords } = await supabase
+          .from("minimum_requirements")
+          .select("keyword")
+          .eq("profile_id", savedTender.evaluation.lead_profile_id);
+        
+        const leadMatched = (savedTender.evaluation.met_minimum_requirements || [])
+          .filter((req: any) => 
+            leadKeywords?.some(k => k.keyword.toLowerCase() === req.keyword.toLowerCase())
+          );
+        setLeadProfileKeywords(leadMatched);
+      }
+
+      // Get keywords from partner profile if it's a match
+      if (savedTender.evaluation.combination_type === 'with_partner' && 
+          savedTender.evaluation.partner_profile_id) {
+        const { data: partnerKeywords } = await supabase
+          .from("minimum_requirements")
+          .select("keyword")
+          .eq("profile_id", savedTender.evaluation.partner_profile_id);
+        
+        const partnerMatched = (savedTender.evaluation.met_minimum_requirements || [])
+          .filter((req: any) => 
+            partnerKeywords?.some(k => k.keyword.toLowerCase() === req.keyword.toLowerCase())
+          );
+        setPartnerProfileKeywords(partnerMatched);
+      } else {
+        setPartnerProfileKeywords([]);
+      }
+    };
+
+    loadProfileKeywords();
   }, [savedTender]);
 
   const handleSave = async () => {
@@ -160,15 +198,38 @@ export const SavedTenderDialog = ({
                   {savedTender.evaluation.total_score}
                 </Badge>
               </div>
-              <div className="flex flex-wrap gap-1 mt-2">
-                {(savedTender.evaluation.met_minimum_requirements || []).map(
-                  (req: any, idx: number) => (
-                    <Badge key={idx} variant="outline" className="text-xs">
-                      {req.keyword}
-                    </Badge>
-                  )
-                )}
-              </div>
+              {savedTender.evaluation.combination_type === 'with_partner' && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Partner:</span>
+                  <Badge variant="secondary">
+                    {savedTender.evaluation.partner_name || "Partner"}
+                  </Badge>
+                </div>
+              )}
+              {leadProfileKeywords.length > 0 && (
+                <div className="mt-2">
+                  <span className="font-medium text-sm">Dine treff:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {leadProfileKeywords.map((req: any, idx: number) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {req.keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {partnerProfileKeywords.length > 0 && (
+                <div className="mt-2">
+                  <span className="font-medium text-sm">Partner treff:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {partnerProfileKeywords.map((req: any, idx: number) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {req.keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </DialogDescription>
         </DialogHeader>
