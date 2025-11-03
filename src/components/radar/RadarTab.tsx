@@ -9,6 +9,7 @@ import { ExternalLink, Bookmark } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getPartnerColor } from "@/lib/partnerColors";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TenderEvaluation {
   id: string;
@@ -40,6 +41,7 @@ export const RadarTab = () => {
   const { toast } = useToast();
   const [evaluations, setEvaluations] = useState<TenderEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
   const [combinations, setCombinations] = useState<any[]>([]);
   const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
@@ -66,6 +68,28 @@ export const RadarTab = () => {
     }
   };
 
+  const pollSyncStatus = async (syncLogId: string) => {
+    const maxAttempts = 60; // Max 5 minutes (60 * 5 seconds)
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      const { data: syncLog } = await supabase
+        .from('tender_sync_log')
+        .select('status')
+        .eq('id', syncLogId)
+        .single();
+
+      if (syncLog?.status === 'completed' || syncLog?.status === 'failed') {
+        return syncLog.status;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+      attempts++;
+    }
+
+    return 'timeout';
+  };
+
   const checkAndSyncTenders = async () => {
     try {
       // Check when last sync happened
@@ -81,17 +105,38 @@ export const RadarTab = () => {
       // If no sync or last sync was over 1 hour ago, trigger sync
       if (!lastSync || lastSync < oneHourAgo) {
         console.log('Triggering automatic tender sync...');
+        setIsSyncing(true);
         setLoading(true);
+
+        // Trigger sync
         await supabase.functions.invoke('fetch-doffin-tenders', {
           body: { organizationId }
         });
-        setLoading(false);
+
+        // Wait a bit for sync log to be created, then get latest sync log to poll
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { data: latestSync } = await supabase
+          .from('tender_sync_log')
+          .select('id')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        // Poll sync status if we have a sync log id
+        if (latestSync?.id) {
+          const status = await pollSyncStatus(latestSync.id);
+          console.log('Sync completed with status:', status);
+        }
+
+        setIsSyncing(false);
       }
 
-      // Fetch evaluations regardless
+      // Fetch evaluations after sync completes
       fetchEvaluations();
     } catch (error) {
       console.error('Error checking/syncing tenders:', error);
+      setIsSyncing(false);
       fetchEvaluations();
     }
   };
@@ -102,9 +147,9 @@ export const RadarTab = () => {
     }
   }, [selectedCombination, minScore, viewFilter, organizationId, combinations.length]);
 
-  // Subscribe to realtime updates for tender evaluations
+  // Subscribe to realtime updates for tender evaluations (only when not syncing)
   useEffect(() => {
-    if (!organizationId) return;
+    if (!organizationId || isSyncing) return;
 
     const channel = supabase
       .channel('tender_evaluations_changes')
@@ -126,7 +171,7 @@ export const RadarTab = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [organizationId]);
+  }, [organizationId, isSyncing]);
 
   const fetchCombinations = async () => {
     const { data: profiles } = await supabase
@@ -682,12 +727,21 @@ export const RadarTab = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
-                  Laster...
-                </TableCell>
-              </TableRow>
+            {isSyncing || loading ? (
+              Array.from({ length: 5 }).map((_, idx) => (
+                <TableRow key={idx}>
+                  <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-8" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                </TableRow>
+              ))
             ) : evaluations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
