@@ -467,28 +467,36 @@ export const RadarTab = () => {
         return sorted.sort((a, b) => {
           const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
           const dateB = b.tender?.published_date ? new Date(b.tender.published_date).getTime() : 0;
-          return dateB - dateA;
+          const dateDiff = dateB - dateA;
+          if (dateDiff !== 0) return dateDiff;
+          return b.total_score - a.total_score;
         });
       case 'published_asc':
         return sorted.sort((a, b) => {
           const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
           const dateB = b.tender?.published_date ? new Date(b.tender.published_date).getTime() : 0;
-          return dateA - dateB;
+          const dateDiff = dateA - dateB;
+          if (dateDiff !== 0) return dateDiff;
+          return b.total_score - a.total_score;
         });
       case 'deadline_desc':
         return sorted.sort((a, b) => {
           const dateA = a.tender?.deadline ? new Date(a.tender.deadline).getTime() : Infinity;
           const dateB = b.tender?.deadline ? new Date(b.tender.deadline).getTime() : Infinity;
-          return dateB - dateA;
+          const dateDiff = dateB - dateA;
+          if (dateDiff !== 0) return dateDiff;
+          return b.total_score - a.total_score;
         });
       case 'deadline_asc':
         return sorted.sort((a, b) => {
           const dateA = a.tender?.deadline ? new Date(a.tender.deadline).getTime() : Infinity;
           const dateB = b.tender?.deadline ? new Date(b.tender.deadline).getTime() : Infinity;
-          return dateA - dateB;
+          const dateDiff = dateA - dateB;
+          if (dateDiff !== 0) return dateDiff;
+          return b.total_score - a.total_score;
         });
       default:
-        return sorted;
+        return sorted.sort((a, b) => b.total_score - a.total_score);
     }
   };
 
