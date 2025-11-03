@@ -82,10 +82,10 @@ export const RadarTab = () => {
   };
 
   useEffect(() => {
-    if (organizationId) {
+    if (organizationId && (selectedCombination !== 'all' || combinations.length > 0)) {
       fetchEvaluations();
     }
-  }, [selectedCombination, minScore, viewFilter, organizationId]);
+  }, [selectedCombination, minScore, viewFilter, organizationId, combinations.length]);
 
   // Subscribe to realtime updates for tender evaluations
   useEffect(() => {
