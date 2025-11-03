@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,13 +8,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { RadarTab } from "@/components/radar/RadarTab";
 import { MatchesTab } from "@/components/matches/MatchesTab";
 import { MineLopTab } from "@/components/minelop/MineLopTab";
-import { SearchSettingsDialog } from "@/components/matches/SearchSettingsDialog";
-import { Button } from "@/components/ui/button";
+import { SearchSettingsPage } from "@/components/matches/SearchSettingsPage";
 
 const Dashboard = () => {
   const { userRole, organizationId } = useAuth();
   const [searchParams] = useSearchParams();
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [organizationName, setOrganizationName] = useState<string>("");
   const isAdmin = userRole === "admin";
 
@@ -58,17 +56,8 @@ const Dashboard = () => {
             {activeTab === "radar" && <RadarTab />}
             {activeTab === "matches" && <MatchesTab />}
             {activeTab === "minelop" && <MineLopTab />}
-            {activeTab === "settings" && isAdmin && (
-              <div>
-                <h2 className="text-2xl font-bold mb-6">Innstillinger for søk</h2>
-                <Button onClick={() => setSettingsOpen(true)} variant="default">
-                  Åpne søkeinnstillinger
-                </Button>
-              </div>
-            )}
+            {activeTab === "settings" && isAdmin && <SearchSettingsPage />}
           </main>
-
-          <SearchSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
         </div>
       </div>
     </SidebarProvider>
