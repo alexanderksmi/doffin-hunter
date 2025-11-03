@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import type { Database } from "@/integrations/supabase/types";
 
 type Profile = {
   id: string;
@@ -39,6 +42,11 @@ export const SearchSettingsPage = () => {
   
   const [newKeyword, setNewKeyword] = useState("");
   const [newWeight, setNewWeight] = useState(1);
+  
+  const [addPartnerOpen, setAddPartnerOpen] = useState(false);
+  const [newPartnerName, setNewPartnerName] = useState("");
+  const [newPartnerDomain, setNewPartnerDomain] = useState("");
+  const [addingPartner, setAddingPartner] = useState(false);
 
   useEffect(() => {
     if (organizationId) {
@@ -182,6 +190,91 @@ export const SearchSettingsPage = () => {
         description: "Kunne ikke slette nøkkelord",
         variant: "destructive",
       });
+    }
+  };
+
+  const addPartner = async () => {
+    if (!newPartnerName.trim() || !newPartnerDomain.trim() || !organizationId || !ownProfile) {
+      toast({
+        title: "Manglende informasjon",
+        description: "Fyll ut alle feltene",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAddingPartner(true);
+    try {
+      // 1. Create partner
+      const { data: partner, error: partnerError } = await supabase
+        .from("partners")
+        .insert({
+          organization_id: organizationId,
+          partner_name: newPartnerName.trim(),
+          partner_domain: newPartnerDomain.trim(),
+        })
+        .select()
+        .single();
+
+      if (partnerError) throw partnerError;
+
+      // 2. Create company profile for partner
+      const { data: profile, error: profileError } = await supabase
+        .from("company_profiles")
+        .insert({
+          organization_id: organizationId,
+          profile_name: newPartnerName.trim(),
+          is_own_profile: false,
+          partner_id: partner.id,
+        })
+        .select()
+        .single();
+
+      if (profileError) throw profileError;
+
+      // 3. Create partner_graph combinations
+      const graphEntries: Database["public"]["Tables"]["partner_graph"]["Insert"][] = [
+        {
+          organization_id: organizationId,
+          combination_type: "lead_partner" as const,
+          lead_profile_id: ownProfile.id,
+          partner_profile_id: profile.id,
+        },
+        {
+          organization_id: organizationId,
+          combination_type: "partner_led" as const,
+          lead_profile_id: profile.id,
+          partner_profile_id: ownProfile.id,
+        },
+      ];
+
+      const { error: graphError } = await supabase
+        .from("partner_graph")
+        .insert(graphEntries);
+
+      if (graphError) throw graphError;
+
+      toast({
+        title: "Partner lagt til",
+        description: `${newPartnerName} har blitt lagt til som partner`,
+      });
+
+      // Reset form and close dialog
+      setNewPartnerName("");
+      setNewPartnerDomain("");
+      setAddPartnerOpen(false);
+
+      // Reload profiles to show new partner
+      loadProfiles();
+    } catch (error) {
+      console.error("Error adding partner:", error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke legge til partner",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingPartner(false);
     }
   };
 
@@ -372,8 +465,16 @@ export const SearchSettingsPage = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Partnere</CardTitle>
-            <CardDescription>Partnerenes nøkkelord og innstillinger</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Partnere</CardTitle>
+                <CardDescription>Partnerenes nøkkelord og innstillinger</CardDescription>
+              </div>
+              <Button onClick={() => setAddPartnerOpen(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Legg til partner
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {partnerProfiles.length > 0 ? (
@@ -398,11 +499,66 @@ export const SearchSettingsPage = () => {
                 )}
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">Ingen partnere funnet</p>
+              <div className="text-center py-8">
+                <p className="text-sm text-muted-foreground mb-4">Ingen partnere lagt til ennå</p>
+                <Button onClick={() => setAddPartnerOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Legg til din første partner
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={addPartnerOpen} onOpenChange={setAddPartnerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Legg til ny partner</DialogTitle>
+            <DialogDescription>
+              Legg til en partner for å evaluere anbudskombinasjoner
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="partner-name">Partnernavn</Label>
+              <Input
+                id="partner-name"
+                placeholder="F.eks. Partnerbedrift AS"
+                value={newPartnerName}
+                onChange={(e) => setNewPartnerName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="partner-domain">Domene</Label>
+              <Input
+                id="partner-domain"
+                placeholder="F.eks. partnerbedrift.no"
+                value={newPartnerDomain}
+                onChange={(e) => setNewPartnerDomain(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddPartnerOpen(false)}>
+              Avbryt
+            </Button>
+            <Button onClick={addPartner} disabled={addingPartner}>
+              {addingPartner ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Legger til...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Legg til
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
