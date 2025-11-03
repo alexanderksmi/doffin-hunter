@@ -166,31 +166,48 @@ export const RadarTab = () => {
       
       const { data: latestSync } = await supabase
         .from('tender_sync_log')
-        .select('id')
+        .select('id, saved_count')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
 
       // Poll sync status if we have a sync log id
+      let savedCount = 0;
       if (latestSync?.id) {
         const status = await pollSyncStatus(latestSync.id);
         console.log('Fetch completed with status:', status);
+        
+        // Get the final saved count
+        const { data: finalSync } = await supabase
+          .from('tender_sync_log')
+          .select('saved_count')
+          .eq('id', latestSync.id)
+          .single();
+        
+        savedCount = finalSync?.saved_count || 0;
       }
 
-      // Now trigger evaluation of tenders in incremental mode
-      toast({
-        title: "Evaluerer anbud",
-        description: "Beregner relevans for nye anbud...",
-      });
+      // Only trigger evaluation if there are new tenders
+      if (savedCount > 0) {
+        toast({
+          title: "Evaluerer anbud",
+          description: `Beregner relevans for ${savedCount} nye anbud...`,
+        });
 
-      await supabase.functions.invoke('evaluate-tenders', {
-        body: { mode: 'incremental' }
-      });
-      
-      toast({
-        title: "Synkronisering fullført",
-        description: "Alle nye anbud er oppdatert",
-      });
+        await supabase.functions.invoke('evaluate-tenders', {
+          body: { mode: 'incremental' }
+        });
+        
+        toast({
+          title: "Synkronisering fullført",
+          description: `${savedCount} nye anbud er evaluert`,
+        });
+      } else {
+        toast({
+          title: "Synkronisering fullført",
+          description: "Ingen nye anbud funnet",
+        });
+      }
 
       setIsSyncing(false);
       fetchEvaluations();
