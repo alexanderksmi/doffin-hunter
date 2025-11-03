@@ -4,7 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink, Edit, Bookmark } from "lucide-react";
+import { Loader2, ExternalLink, Edit, Bookmark, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SavedTenderDialog } from "./SavedTenderDialog";
@@ -43,6 +53,8 @@ export const MatchesTab = () => {
   const [savedTenders, setSavedTenders] = useState<SavedTender[]>([]);
   const [selectedTender, setSelectedTender] = useState<SavedTender | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tenderToDelete, setTenderToDelete] = useState<SavedTender | null>(null);
 
   const isAdmin = userRole === "admin";
 
@@ -122,6 +134,41 @@ export const MatchesTab = () => {
     setDialogOpen(true);
   };
 
+  const handleDeleteClick = (tender: SavedTender) => {
+    setTenderToDelete(tender);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!tenderToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from("saved_tenders")
+        .delete()
+        .eq("id", tenderToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Slettet",
+        description: "Anbudet er slettet",
+      });
+      
+      loadSavedTenders();
+    } catch (error) {
+      console.error("Error deleting tender:", error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke slette anbudet",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setTenderToDelete(null);
+    }
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Ingen frist";
     const date = new Date(dateString);
@@ -172,7 +219,7 @@ export const MatchesTab = () => {
               <TableHead>Relevans</TableHead>
               <TableHead>Tidskritisk</TableHead>
               <TableHead>Frist</TableHead>
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="w-24"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -245,13 +292,23 @@ export const MatchesTab = () => {
                     {formatDate(saved.tender.deadline)}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditTender(saved)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditTender(saved)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteClick(saved)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -268,6 +325,23 @@ export const MatchesTab = () => {
           onUpdate={loadSavedTenders}
         />
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Slett lagret anbud</AlertDialogTitle>
+            <AlertDialogDescription>
+              Er du sikker på at du vil slette dette anbudet? Dette kan ikke angres.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Slett
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
