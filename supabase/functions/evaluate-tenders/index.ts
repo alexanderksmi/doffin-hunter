@@ -325,17 +325,28 @@ async function evaluateTenderCombination(
   // No synergy bonus needed for single profile evaluations
   const synergyBonus = 0;
 
-  // Score = number of minimum requirements met (1 point per requirement)
-  const totalScore = metMinReqs.length;
+  // Score = minimum requirements met + support keywords + negative keywords + CPV codes + synergy bonus
+  const totalScore = metMinReqs.length + supportScore + negativeScore + cpvScore + synergyBonus;
 
-  // Build explanation showing which minimum requirements were met
+  // Build explanation showing score breakdown
   let explanation = '';
   if (totalScore > 0) {
-    const explanationParts: string[] = [];
-    metMinReqs.forEach(req => {
-      explanationParts.push(`${req.keyword}`);
-    });
-    explanation = `Oppfylt: ${explanationParts.join(', ')} (${totalScore} poeng)`;
+    const parts: string[] = [];
+    
+    if (metMinReqs.length > 0) {
+      parts.push(`Minimumskrav: ${metMinReqs.map(r => r.keyword).join(', ')} (+${metMinReqs.length})`);
+    }
+    if (supportScore > 0) {
+      parts.push(`Støtteord: ${matchedSupportKeywords.length} treff (+${supportScore})`);
+    }
+    if (negativeScore < 0) {
+      parts.push(`Negative ord: ${matchedNegativeKeywords.length} treff (${negativeScore})`);
+    }
+    if (cpvScore > 0) {
+      parts.push(`CPV-koder: ${matchedCpvCodes.length} treff (+${cpvScore})`);
+    }
+    
+    explanation = `${parts.join(' | ')} = ${totalScore} poeng totalt`;
   } else {
     explanation = 'Ingen minimumskrav oppfylt';
   }
