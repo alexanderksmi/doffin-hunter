@@ -18,6 +18,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SavedTenderDialog } from "./SavedTenderDialog";
+import { getPartnerColor } from "@/lib/partnerColors";
 
 type SavedTender = {
   id: string;
@@ -55,14 +56,33 @@ export const MatchesTab = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tenderToDelete, setTenderToDelete] = useState<SavedTender | null>(null);
+  const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
 
   const isAdmin = userRole === "admin";
 
   useEffect(() => {
     if (organizationId) {
+      loadPartnerIndexes();
       loadSavedTenders();
     }
   }, [organizationId]);
+
+  const loadPartnerIndexes = async () => {
+    const { data: profiles } = await supabase
+      .from('company_profiles')
+      .select('id, is_own_profile, created_at')
+      .eq('organization_id', organizationId)
+      .eq('is_own_profile', false)
+      .order('created_at', { ascending: true });
+
+    if (profiles) {
+      const indexMap = new Map<string, number>();
+      profiles.forEach((partner, index) => {
+        indexMap.set(partner.id, index);
+      });
+      setPartnerIndexMap(indexMap);
+    }
+  };
 
   const loadSavedTenders = async () => {
     setLoading(true);
@@ -241,7 +261,15 @@ export const MatchesTab = () => {
                   </TableCell>
                   <TableCell className="text-sm">
                     {saved.combination_type === 'combination' ? (
-                      <Badge variant="secondary">{saved.partnerName || "Partner"}</Badge>
+                      (() => {
+                        const partnerIndex = saved.partner_profile_id ? partnerIndexMap.get(saved.partner_profile_id) ?? 0 : 0;
+                        const colors = getPartnerColor(partnerIndex);
+                        return (
+                          <Badge variant="secondary" className={`${colors.bg} ${colors.text}`}>
+                            {saved.partnerName || "Partner"}
+                          </Badge>
+                        );
+                      })()
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}

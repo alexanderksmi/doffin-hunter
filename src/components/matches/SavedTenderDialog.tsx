@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowRight, ExternalLink } from "lucide-react";
+import { getPartnerColor } from "@/lib/partnerColors";
 
 type SavedTenderDialogProps = {
   open: boolean;
@@ -38,6 +39,7 @@ export const SavedTenderDialog = ({
   onUpdate,
 }: SavedTenderDialogProps) => {
   const { toast } = useToast();
+  const { organizationId } = useAuth();
   const [comments, setComments] = useState(savedTender.comments || "");
   const [relevanceScore, setRelevanceScore] = useState(
     savedTender.relevance_score || 50
@@ -48,6 +50,7 @@ export const SavedTenderDialog = ({
   const [saving, setSaving] = useState(false);
   const [leadProfileKeywords, setLeadProfileKeywords] = useState<any[]>([]);
   const [partnerProfileKeywords, setPartnerProfileKeywords] = useState<any[]>([]);
+  const [partnerIndex, setPartnerIndex] = useState<number>(0);
   const [combinedScore, setCombinedScore] = useState(0);
 
   useEffect(() => {
@@ -93,6 +96,19 @@ export const SavedTenderDialog = ({
               source: 'partner' 
             }));
             setPartnerProfileKeywords(partnerMatched);
+          }
+
+          // Get partner index
+          const { data: profiles } = await supabase
+            .from('company_profiles')
+            .select('id, created_at')
+            .eq('organization_id', organizationId!)
+            .eq('is_own_profile', false)
+            .order('created_at', { ascending: true });
+
+          if (profiles) {
+            const index = profiles.findIndex(p => p.id === savedTender.partner_profile_id);
+            setPartnerIndex(index >= 0 ? index : 0);
           }
         }
 
@@ -236,7 +252,7 @@ export const SavedTenderDialog = ({
           {savedTender.combination_type === 'combination' && savedTender.partnerName && (
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium">Partner:</span>
-              <Badge variant="secondary">
+              <Badge variant="secondary" className={`${getPartnerColor(partnerIndex).bg} ${getPartnerColor(partnerIndex).text}`}>
                 {savedTender.partnerName}
               </Badge>
             </div>
@@ -259,11 +275,14 @@ export const SavedTenderDialog = ({
                 <div className="mt-2">
                   <span className="font-medium text-sm">Partner treff:</span>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {partnerProfileKeywords.map((req: any, idx: number) => (
-                      <Badge key={idx} variant="outline" className="text-xs border-green-600 text-green-600">
-                        {req.keyword}
-                      </Badge>
-                    ))}
+                    {partnerProfileKeywords.map((req: any, idx: number) => {
+                      const colors = getPartnerColor(partnerIndex);
+                      return (
+                        <Badge key={idx} variant="outline" className={`text-xs ${colors.border} ${colors.text}`}>
+                          {req.keyword}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 </div>
               )}

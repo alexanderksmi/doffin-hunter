@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Bookmark } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { getPartnerColor } from "@/lib/partnerColors";
 
 interface TenderEvaluation {
   id: string;
@@ -41,6 +42,7 @@ export const RadarTab = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
   const [combinations, setCombinations] = useState<any[]>([]);
+  const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
   const [minScore, setMinScore] = useState<string>("1");
   const [viewFilter, setViewFilter] = useState<string>("published_desc");
   const [savedTenderIds, setSavedTenderIds] = useState<Set<string>>(new Set());
@@ -129,19 +131,27 @@ export const RadarTab = () => {
   const fetchCombinations = async () => {
     const { data: profiles } = await supabase
       .from('company_profiles')
-      .select('id, profile_name, is_own_profile')
-      .eq('organization_id', organizationId);
+      .select('id, profile_name, is_own_profile, created_at')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: true });
 
     if (!profiles) return;
 
     const ownProfile = profiles.find(p => p.is_own_profile);
     if (!ownProfile) return;
 
+    // Create partner index map
+    const partnerProfiles = profiles.filter(p => !p.is_own_profile);
+    const indexMap = new Map<string, number>();
+    partnerProfiles.forEach((partner, index) => {
+      indexMap.set(partner.id, index);
+    });
+    setPartnerIndexMap(indexMap);
+
     const combos: any[] = [];
 
     // Add combination matches first (both own AND each partner)
-    const partnerProfiles = profiles.filter(p => !p.is_own_profile);
-    partnerProfiles.forEach(partner => {
+    partnerProfiles.forEach((partner, index) => {
       combos.push({
         id: `combo_${ownProfile.id}_${partner.id}`,
         ownProfileId: ownProfile.id,
@@ -149,7 +159,8 @@ export const RadarTab = () => {
         label: `${ownProfile.profile_name} + ${partner.profile_name}`,
         type: 'combination',
         ownProfileName: ownProfile.profile_name,
-        partnerProfileName: partner.profile_name
+        partnerProfileName: partner.profile_name,
+        partnerIndex: index
       });
     });
 
@@ -161,12 +172,13 @@ export const RadarTab = () => {
     });
 
     // Add partner profiles
-    partnerProfiles.forEach(partner => {
+    partnerProfiles.forEach((partner, index) => {
       combos.push({ 
         id: `partner_${partner.id}`,
         profileId: partner.id,
         label: `Kun ${partner.profile_name}`, 
-        type: 'partner'
+        type: 'partner',
+        partnerIndex: index
       });
     });
 
@@ -708,9 +720,13 @@ export const RadarTab = () => {
                     <Badge 
                       variant="default" 
                       className={
-                        evaluation.lead_profile.profile_name === 'Documaster' 
-                          ? 'bg-blue-600' 
-                          : 'bg-green-600'
+                        evaluation.combination_type === 'combination' && evaluation.partner_profile_id
+                          ? (() => {
+                              const partnerIdx = partnerIndexMap.get(evaluation.partner_profile_id!) ?? 0;
+                              const colors = getPartnerColor(partnerIdx);
+                              return `${colors.bg} ${colors.text} border ${colors.border}`;
+                            })()
+                          : 'bg-blue-600'
                       }
                     >
                       {evaluation.total_score}
@@ -718,18 +734,27 @@ export const RadarTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {(evaluation.met_minimum_requirements as any[]).map((req: any, idx: number) => (
-                        <Badge 
-                          key={idx} 
-                          variant="outline" 
-                          className={`text-xs ${
-                            req.source === 'partner' ? 'border-green-600 text-green-600' : 
-                            req.source === 'lead' && evaluation.combination_type !== 'solo' ? 'border-blue-600 text-blue-600' : ''
-                          }`}
-                        >
-                          {req.keyword}
-                        </Badge>
-                      ))}
+                      {(evaluation.met_minimum_requirements as any[]).map((req: any, idx: number) => {
+                        let badgeClass = "";
+                        if (req.source === 'partner' && evaluation.partner_profile?.profile_name) {
+                          // Get partner index from partner_profile_id
+                          const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id!) ?? 0;
+                          const colors = getPartnerColor(partnerIndex);
+                          badgeClass = `${colors.border} ${colors.text}`;
+                        } else if (req.source === 'lead' && evaluation.combination_type !== 'solo') {
+                          badgeClass = 'border-blue-600 text-blue-600';
+                        }
+                        
+                        return (
+                          <Badge 
+                            key={idx} 
+                            variant="outline" 
+                            className={`text-xs ${badgeClass}`}
+                          >
+                            {req.keyword}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
