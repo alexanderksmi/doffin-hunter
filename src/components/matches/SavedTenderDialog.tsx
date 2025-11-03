@@ -216,74 +216,73 @@ export const SavedTenderDialog = ({
               <ExternalLink className="h-4 w-4" />
             </a>
           </DialogTitle>
-          <DialogDescription>
-            <div className="space-y-2 mt-2">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Oppdragsgiver:</span>
-                <span>{savedTender.tender.client || "N/A"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Frist:</span>
-                <span>{formatDate(savedTender.tender.deadline)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Score:</span>
-                <Badge variant="default">
-                  {combinedScore}
-                </Badge>
-              </div>
-              {savedTender.combination_type === 'combination' && savedTender.partnerName && (
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Partner:</span>
-                  <Badge variant="secondary">
-                    {savedTender.partnerName}
-                  </Badge>
+        </DialogHeader>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium">Oppdragsgiver:</span>
+            <span>{savedTender.tender.client || "N/A"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium">Frist:</span>
+            <span>{formatDate(savedTender.tender.deadline)}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium">Score:</span>
+            <Badge variant="default">
+              {combinedScore}
+            </Badge>
+          </div>
+          {savedTender.combination_type === 'combination' && savedTender.partnerName && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium">Partner:</span>
+              <Badge variant="secondary">
+                {savedTender.partnerName}
+              </Badge>
+            </div>
+          )}
+          {savedTender.combination_type === 'combination' ? (
+            <>
+              {leadProfileKeywords.length > 0 && (
+                <div className="mt-2">
+                  <span className="font-medium text-sm">Dine treff:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {leadProfileKeywords.map((req: any, idx: number) => (
+                      <Badge key={idx} variant="outline" className="text-xs border-blue-600 text-blue-600">
+                        {req.keyword}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
-              {savedTender.combination_type === 'combination' ? (
-                <>
-                  {leadProfileKeywords.length > 0 && (
-                    <div className="mt-2">
-                      <span className="font-medium text-sm">Dine treff:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {leadProfileKeywords.map((req: any, idx: number) => (
-                          <Badge key={idx} variant="outline" className="text-xs border-blue-600 text-blue-600">
-                            {req.keyword}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {partnerProfileKeywords.length > 0 && (
-                    <div className="mt-2">
-                      <span className="font-medium text-sm">Partner treff:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {partnerProfileKeywords.map((req: any, idx: number) => (
-                          <Badge key={idx} variant="outline" className="text-xs border-green-600 text-green-600">
-                            {req.keyword}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                leadProfileKeywords.length > 0 && (
-                  <div className="mt-2">
-                    <span className="font-medium text-sm">Treff:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {leadProfileKeywords.map((req: any, idx: number) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {req.keyword}
-                        </Badge>
-                      ))}
-                    </div>
+              {partnerProfileKeywords.length > 0 && (
+                <div className="mt-2">
+                  <span className="font-medium text-sm">Partner treff:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {partnerProfileKeywords.map((req: any, idx: number) => (
+                      <Badge key={idx} variant="outline" className="text-xs border-green-600 text-green-600">
+                        {req.keyword}
+                      </Badge>
+                    ))}
                   </div>
-                )
+                </div>
               )}
-            </div>
-          </DialogDescription>
-        </DialogHeader>
+            </>
+          ) : (
+            leadProfileKeywords.length > 0 && (
+              <div className="mt-2">
+                <span className="font-medium text-sm">Treff:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {leadProfileKeywords.map((req: any, idx: number) => (
+                    <Badge key={idx} variant="outline" className="text-xs">
+                      {req.keyword}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
+        </div>
 
         <div className="space-y-6 py-4">
           <div className="space-y-2">
