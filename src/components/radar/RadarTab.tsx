@@ -46,7 +46,7 @@ export const RadarTab = () => {
   const [combinations, setCombinations] = useState<any[]>([]);
   const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
   const [minScore, setMinScore] = useState<string>("1");
-  const [viewFilter, setViewFilter] = useState<string>("published_desc");
+  const [viewFilter, setViewFilter] = useState<string>("score_desc");
   const [savedTenderIds, setSavedTenderIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -532,36 +532,31 @@ export const RadarTab = () => {
   const applySorting = (evals: any[], sortType: string) => {
     const sorted = [...evals];
     
-    // Always sort by score first (highest first), then by date as secondary sort
     switch (sortType) {
+      case 'score_desc':
+        return sorted.sort((a, b) => b.total_score - a.total_score);
+      case 'score_asc':
+        return sorted.sort((a, b) => a.total_score - b.total_score);
       case 'published_desc':
         return sorted.sort((a, b) => {
-          const scoreDiff = b.total_score - a.total_score;
-          if (scoreDiff !== 0) return scoreDiff;
           const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
           const dateB = b.tender?.published_date ? new Date(b.tender.published_date).getTime() : 0;
           return dateB - dateA;
         });
       case 'published_asc':
         return sorted.sort((a, b) => {
-          const scoreDiff = b.total_score - a.total_score;
-          if (scoreDiff !== 0) return scoreDiff;
           const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
           const dateB = b.tender?.published_date ? new Date(b.tender.published_date).getTime() : 0;
           return dateA - dateB;
         });
       case 'deadline_desc':
         return sorted.sort((a, b) => {
-          const scoreDiff = b.total_score - a.total_score;
-          if (scoreDiff !== 0) return scoreDiff;
           const dateA = a.tender?.deadline ? new Date(a.tender.deadline).getTime() : Infinity;
           const dateB = b.tender?.deadline ? new Date(b.tender.deadline).getTime() : Infinity;
           return dateB - dateA;
         });
       case 'deadline_asc':
         return sorted.sort((a, b) => {
-          const scoreDiff = b.total_score - a.total_score;
-          if (scoreDiff !== 0) return scoreDiff;
           const dateA = a.tender?.deadline ? new Date(a.tender.deadline).getTime() : Infinity;
           const dateB = b.tender?.deadline ? new Date(b.tender.deadline).getTime() : Infinity;
           return dateA - dateB;
@@ -691,12 +686,14 @@ export const RadarTab = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Label>Visning:</Label>
+          <Label>Sorter:</Label>
           <Select value={viewFilter} onValueChange={setViewFilter}>
             <SelectTrigger className="w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="score_desc">Score: Høy til lav</SelectItem>
+              <SelectItem value="score_asc">Score: Lav til høy</SelectItem>
               <SelectItem value="published_desc">Publiseringsdato: Ny til gammel</SelectItem>
               <SelectItem value="published_asc">Publiseringsdato: Gammel til ny</SelectItem>
               <SelectItem value="deadline_desc">Frist: Sen til snart</SelectItem>
@@ -719,7 +716,7 @@ export const RadarTab = () => {
               <TableHead>Oppdragsgiver</TableHead>
               <TableHead>Filtrer</TableHead>
               <TableHead className="w-16">Score</TableHead>
-              <TableHead>Krav</TableHead>
+              <TableHead>Søkeord</TableHead>
               <TableHead>Forklaring</TableHead>
               <TableHead>Frist</TableHead>
               <TableHead>Publisert</TableHead>
