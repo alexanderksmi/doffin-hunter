@@ -283,11 +283,15 @@ async function evaluateTenderCombination(
   const matchedSupportKeywords: any[] = [];
   const matchedKeywordSet = new Set<string>();
 
+  console.log(`\n--- Evaluating support keywords for tender ${tender.id.substring(0, 8)} ---`);
+  console.log(`Profile has ${combination.profile.support_keywords?.length || 0} support keywords`);
+
   for (const kw of (combination.profile.support_keywords || [])) {
     const keyword = kw.keyword.toLowerCase();
     
     // Skip if we already scored this keyword
     if (matchedKeywordSet.has(keyword)) {
+      console.log(`  Skipping duplicate keyword: "${keyword}"`);
       continue;
     }
 
@@ -300,6 +304,7 @@ async function evaluateTenderCombination(
     }
 
     if (foundIn) {
+      console.log(`  ✓ Matched "${keyword}" in ${foundIn}, weight: ${kw.weight}`);
       supportScore += kw.weight;
       matchedKeywordSet.add(keyword);
       matchedSupportKeywords.push({
@@ -310,6 +315,8 @@ async function evaluateTenderCombination(
       });
     }
   }
+  
+  console.log(`Total support score: ${supportScore} from ${matchedSupportKeywords.length} unique keywords`);
 
   // Step 3: Negative keywords
   // Each keyword only scores ONCE per tender, regardless of frequency

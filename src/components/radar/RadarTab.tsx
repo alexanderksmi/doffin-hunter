@@ -206,36 +206,6 @@ export const RadarTab = () => {
     }
   };
 
-  const fullReEvaluation = async () => {
-    try {
-      setLoading(true);
-
-      toast({
-        title: "Full re-evaluering",
-        description: "Evaluerer alle anbud på nytt...",
-      });
-
-      await supabase.functions.invoke('evaluate-tenders', {
-        body: { mode: 'full' }
-      });
-      
-      toast({
-        title: "Re-evaluering fullført",
-        description: "Alle anbud er evaluert på nytt",
-      });
-
-      fetchEvaluations();
-    } catch (error) {
-      console.error('Error in full re-evaluation:', error);
-      toast({
-        title: "Feil ved re-evaluering",
-        description: "Kunne ikke re-evaluere anbud",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (organizationId && (selectedCombination !== 'all' || combinations.length > 0)) {
@@ -806,16 +776,6 @@ export const RadarTab = () => {
         >
           <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
           {isSyncing ? "Synkroniserer..." : "Sync anbud"}
-        </Button>
-
-        <Button 
-          onClick={fullReEvaluation} 
-          disabled={loading}
-          variant="secondary"
-          className="gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading && !isSyncing ? 'animate-spin' : ''}`} />
-          Full re-evaluering
         </Button>
 
         <div className="ml-auto text-sm text-muted-foreground">
