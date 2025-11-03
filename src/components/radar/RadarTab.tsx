@@ -462,38 +462,39 @@ export const RadarTab = () => {
   const applySorting = (evals: any[], sortType: string) => {
     const sorted = [...evals];
     
+    // Always sort by score first (highest first), then by date as secondary sort
     switch (sortType) {
       case 'published_desc':
         return sorted.sort((a, b) => {
+          const scoreDiff = b.total_score - a.total_score;
+          if (scoreDiff !== 0) return scoreDiff;
           const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
           const dateB = b.tender?.published_date ? new Date(b.tender.published_date).getTime() : 0;
-          const dateDiff = dateB - dateA;
-          if (dateDiff !== 0) return dateDiff;
-          return b.total_score - a.total_score;
+          return dateB - dateA;
         });
       case 'published_asc':
         return sorted.sort((a, b) => {
+          const scoreDiff = b.total_score - a.total_score;
+          if (scoreDiff !== 0) return scoreDiff;
           const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
           const dateB = b.tender?.published_date ? new Date(b.tender.published_date).getTime() : 0;
-          const dateDiff = dateA - dateB;
-          if (dateDiff !== 0) return dateDiff;
-          return b.total_score - a.total_score;
+          return dateA - dateB;
         });
       case 'deadline_desc':
         return sorted.sort((a, b) => {
+          const scoreDiff = b.total_score - a.total_score;
+          if (scoreDiff !== 0) return scoreDiff;
           const dateA = a.tender?.deadline ? new Date(a.tender.deadline).getTime() : Infinity;
           const dateB = b.tender?.deadline ? new Date(b.tender.deadline).getTime() : Infinity;
-          const dateDiff = dateB - dateA;
-          if (dateDiff !== 0) return dateDiff;
-          return b.total_score - a.total_score;
+          return dateB - dateA;
         });
       case 'deadline_asc':
         return sorted.sort((a, b) => {
+          const scoreDiff = b.total_score - a.total_score;
+          if (scoreDiff !== 0) return scoreDiff;
           const dateA = a.tender?.deadline ? new Date(a.tender.deadline).getTime() : Infinity;
           const dateB = b.tender?.deadline ? new Date(b.tender.deadline).getTime() : Infinity;
-          const dateDiff = dateA - dateB;
-          if (dateDiff !== 0) return dateDiff;
-          return b.total_score - a.total_score;
+          return dateA - dateB;
         });
       default:
         return sorted.sort((a, b) => b.total_score - a.total_score);
