@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Bookmark } from "lucide-react";
+import { ExternalLink, Bookmark, RefreshCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getPartnerColor } from "@/lib/partnerColors";
@@ -108,7 +108,7 @@ export const RadarTab = () => {
         setIsSyncing(true);
         setLoading(true);
 
-        // Trigger sync
+        // Trigger fetch tenders
         await supabase.functions.invoke('fetch-doffin-tenders', {
           body: { organizationId }
         });
@@ -126,8 +126,13 @@ export const RadarTab = () => {
         // Poll sync status if we have a sync log id
         if (latestSync?.id) {
           const status = await pollSyncStatus(latestSync.id);
-          console.log('Sync completed with status:', status);
+          console.log('Fetch completed with status:', status);
         }
+
+        // Now trigger evaluation of tenders
+        console.log('Triggering tender evaluation...');
+        await supabase.functions.invoke('evaluate-tenders');
+        console.log('Evaluation completed');
 
         setIsSyncing(false);
       }
@@ -136,6 +141,64 @@ export const RadarTab = () => {
       fetchEvaluations();
     } catch (error) {
       console.error('Error checking/syncing tenders:', error);
+      setIsSyncing(false);
+      fetchEvaluations();
+    }
+  };
+
+  const manualSyncTenders = async () => {
+    try {
+      setIsSyncing(true);
+      setLoading(true);
+
+      toast({
+        title: "Synkroniserer anbud",
+        description: "Henter nye anbud fra Doffin...",
+      });
+
+      // Trigger fetch tenders
+      await supabase.functions.invoke('fetch-doffin-tenders', {
+        body: { organizationId }
+      });
+
+      // Wait a bit for sync log to be created, then get latest sync log to poll
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const { data: latestSync } = await supabase
+        .from('tender_sync_log')
+        .select('id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Poll sync status if we have a sync log id
+      if (latestSync?.id) {
+        const status = await pollSyncStatus(latestSync.id);
+        console.log('Fetch completed with status:', status);
+      }
+
+      // Now trigger evaluation of tenders
+      toast({
+        title: "Evaluerer anbud",
+        description: "Beregner relevans for nye anbud...",
+      });
+
+      await supabase.functions.invoke('evaluate-tenders');
+      
+      toast({
+        title: "Synkronisering fullført",
+        description: "Alle anbud er oppdatert",
+      });
+
+      setIsSyncing(false);
+      fetchEvaluations();
+    } catch (error) {
+      console.error('Error manually syncing tenders:', error);
+      toast({
+        title: "Feil ved synkronisering",
+        description: "Kunne ikke synkronisere anbud",
+        variant: "destructive",
+      });
       setIsSyncing(false);
       fetchEvaluations();
     }
@@ -701,6 +764,16 @@ export const RadarTab = () => {
             </SelectContent>
           </Select>
         </div>
+
+        <Button 
+          onClick={manualSyncTenders} 
+          disabled={isSyncing}
+          variant="outline"
+          className="gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? "Synkroniserer..." : "Sync anbud"}
+        </Button>
 
         <div className="ml-auto text-sm text-muted-foreground">
           {evaluations.length} anbud
