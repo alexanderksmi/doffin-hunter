@@ -253,56 +253,71 @@ async function evaluateTenderCombination(
   }
 
   // Step 2: Relevance - Support keywords with weights
-  const TITLE_WEIGHT_MULTIPLIER = 2; // Title words count double
+  // Each keyword only scores ONCE per tender, regardless of frequency
+  // No title multiplier - same points for title or description
   let supportScore = 0;
   const matchedSupportKeywords: any[] = [];
+  const matchedKeywordSet = new Set<string>();
 
   for (const kw of (combination.profile.support_keywords || [])) {
     const keyword = kw.keyword.toLowerCase();
+    
+    // Skip if we already scored this keyword
+    if (matchedKeywordSet.has(keyword)) {
+      continue;
+    }
+
     let foundIn: string | null = null;
-    let weight = kw.weight;
 
     if (titleText.includes(keyword)) {
       foundIn = 'title';
-      weight *= TITLE_WEIGHT_MULTIPLIER;
     } else if (descriptionText.includes(keyword)) {
       foundIn = 'description';
     }
 
     if (foundIn) {
-      supportScore += weight;
+      supportScore += kw.weight;
+      matchedKeywordSet.add(keyword);
       matchedSupportKeywords.push({
         keyword: kw.keyword,
         weight: kw.weight,
         found_in: foundIn,
-        effective_weight: weight
+        effective_weight: kw.weight
       });
     }
   }
 
   // Step 3: Negative keywords
+  // Each keyword only scores ONCE per tender, regardless of frequency
+  // No title multiplier - same points for title or description
   let negativeScore = 0;
   const matchedNegativeKeywords: any[] = [];
+  const matchedNegativeSet = new Set<string>();
 
   for (const kw of (combination.profile.negative_keywords || [])) {
     const keyword = kw.keyword.toLowerCase();
+    
+    // Skip if we already scored this keyword
+    if (matchedNegativeSet.has(keyword)) {
+      continue;
+    }
+
     let foundIn: string | null = null;
-    let weight = kw.weight;
 
     if (titleText.includes(keyword)) {
       foundIn = 'title';
-      weight *= TITLE_WEIGHT_MULTIPLIER;
     } else if (descriptionText.includes(keyword)) {
       foundIn = 'description';
     }
 
     if (foundIn) {
-      negativeScore -= weight;
+      negativeScore += kw.weight; // weight is already negative
+      matchedNegativeSet.add(keyword);
       matchedNegativeKeywords.push({
         keyword: kw.keyword,
         weight: kw.weight,
         found_in: foundIn,
-        effective_weight: weight
+        effective_weight: kw.weight
       });
     }
   }
@@ -325,31 +340,34 @@ async function evaluateTenderCombination(
   // No synergy bonus needed for single profile evaluations
   const synergyBonus = 0;
 
-  // Score = minimum requirements met + support keywords + negative keywords + CPV codes + synergy bonus
-  const totalScore = metMinReqs.length + supportScore + negativeScore + cpvScore + synergyBonus;
+  // Score = ONLY support keywords + negative keywords + CPV codes + synergy bonus
+  // Minimum requirements DO NOT give points, they are only a binary check
+  const totalScore = supportScore + negativeScore + cpvScore + synergyBonus;
 
-  // Build explanation showing score breakdown
+  // Build explanation showing both minimum requirements (no points) and scoring keywords
   let explanation = '';
-  if (totalScore > 0) {
-    const parts: string[] = [];
-    
-    if (metMinReqs.length > 0) {
-      parts.push(`Minimumskrav: ${metMinReqs.map(r => r.keyword).join(', ')} (+${metMinReqs.length})`);
-    }
-    if (supportScore > 0) {
-      parts.push(`Støtteord: ${matchedSupportKeywords.length} treff (+${supportScore})`);
-    }
-    if (negativeScore < 0) {
-      parts.push(`Negative ord: ${matchedNegativeKeywords.length} treff (${negativeScore})`);
-    }
-    if (cpvScore > 0) {
-      parts.push(`CPV-koder: ${matchedCpvCodes.length} treff (+${cpvScore})`);
-    }
-    
-    explanation = `${parts.join(' | ')} = ${totalScore} poeng totalt`;
-  } else {
-    explanation = 'Ingen minimumskrav oppfylt';
+  const parts: string[] = [];
+  
+  // Always show which minimum requirements were met (but no points)
+  if (metMinReqs.length > 0) {
+    parts.push(`Minstekrav: ${metMinReqs.map(r => r.keyword).join(', ')}`);
   }
+  
+  // Show scoring breakdown
+  if (supportScore > 0) {
+    const keywords = matchedSupportKeywords.map(k => k.keyword).join(', ');
+    parts.push(`Støtteord: ${keywords} (+${supportScore})`);
+  }
+  if (negativeScore < 0) {
+    const keywords = matchedNegativeKeywords.map(k => k.keyword).join(', ');
+    parts.push(`Negative: ${keywords} (${negativeScore})`);
+  }
+  if (cpvScore > 0) {
+    const codes = matchedCpvCodes.map(c => c.cpv_code).join(', ');
+    parts.push(`CPV: ${codes} (+${cpvScore})`);
+  }
+  
+  explanation = parts.length > 0 ? `${parts.join(' | ')} = ${totalScore} poeng` : 'Ingen treff';
 
   // Save evaluation (combination_id is always NULL for solo profile evaluations)
   const { error: saveError } = await supabase
