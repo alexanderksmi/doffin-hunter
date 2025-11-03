@@ -4,19 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink, Edit, Bookmark } from "lucide-react";
+import { Loader2, ExternalLink, Eye, FolderOpen } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SavedTenderDialog } from "./SavedTenderDialog";
+import { TenderWorkflowDialog } from "./TenderWorkflowDialog";
 
-type SavedTender = {
+type MineLopTender = {
   id: string;
   tender_id: string;
   evaluation_id: string;
+  current_stage: string;
   relevance_score: number | null;
   time_criticality: string | null;
   comments: string | null;
-  status: string;
+  stage_notes: any;
   created_at: string;
   tender: {
     id: string;
@@ -32,23 +33,32 @@ type SavedTender = {
   };
 };
 
-export const MatchesTab = () => {
+const stageLabels: Record<string, string> = {
+  kvalifisering: "Kvalifisering",
+  analyse_planlegging: "Analyse / Planlegging",
+  svarer_anbud: "Svarer anbud",
+  kvalitetssikring: "Kvalitetssikring",
+  godkjenning: "Godkjenning",
+  laring: "Læring",
+};
+
+export const MineLopTab = () => {
   const { userRole, organizationId } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [savedTenders, setSavedTenders] = useState<SavedTender[]>([]);
-  const [selectedTender, setSelectedTender] = useState<SavedTender | null>(null);
+  const [mineLopTenders, setMineLopTenders] = useState<MineLopTender[]>([]);
+  const [selectedTender, setSelectedTender] = useState<MineLopTender | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const isAdmin = userRole === "admin";
 
   useEffect(() => {
     if (organizationId) {
-      loadSavedTenders();
+      loadMineLopTenders();
     }
   }, [organizationId]);
 
-  const loadSavedTenders = async () => {
+  const loadMineLopTenders = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -69,16 +79,16 @@ export const MatchesTab = () => {
           )
         `)
         .eq("organization_id", organizationId)
-        .eq("status", "vurdering")
+        .eq("status", "pagar")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setSavedTenders(data as any || []);
+      setMineLopTenders(data as any || []);
     } catch (error) {
-      console.error("Error loading saved tenders:", error);
+      console.error("Error loading Mine Løp tenders:", error);
       toast({
         title: "Feil",
-        description: "Kunne ikke laste lagrede anbud",
+        description: "Kunne ikke laste Mine Løp",
         variant: "destructive",
       });
     } finally {
@@ -86,7 +96,7 @@ export const MatchesTab = () => {
     }
   };
 
-  const handleEditTender = (tender: SavedTender) => {
+  const handleViewTender = (tender: MineLopTender) => {
     setSelectedTender(tender);
     setDialogOpen(true);
   };
@@ -101,7 +111,7 @@ export const MatchesTab = () => {
     return (
       <Alert>
         <AlertDescription>
-          Du må være administrator for å se lagrede anbud.
+          Du må være administrator for å se Mine Løp.
         </AlertDescription>
       </Alert>
     );
@@ -119,13 +129,13 @@ export const MatchesTab = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Lagrede anbud</h2>
+          <h2 className="text-2xl font-bold">Mine Løp</h2>
           <p className="text-muted-foreground">
-            Anbud du har lagret for videre vurdering
+            Anbudsprosesser du er en del av
           </p>
         </div>
         <div className="text-sm text-muted-foreground">
-          {savedTenders.length} lagrede anbud
+          {mineLopTenders.length} aktive løp
         </div>
       </div>
 
@@ -136,30 +146,29 @@ export const MatchesTab = () => {
               <TableHead className="w-12">Link</TableHead>
               <TableHead className="w-[30%]">Tittel</TableHead>
               <TableHead>Oppdragsgiver</TableHead>
-              <TableHead className="w-16">Score</TableHead>
+              <TableHead>Fase</TableHead>
               <TableHead>Relevans</TableHead>
-              <TableHead>Tidskritisk</TableHead>
               <TableHead>Frist</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {savedTenders.length === 0 ? (
+            {mineLopTenders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
-                    <Bookmark className="h-8 w-8 text-muted-foreground/50" />
-                    <p className="font-medium">Ingen lagrede anbud</p>
-                    <p className="text-sm">Gå til Radar-fanen for å lagre anbud</p>
+                    <FolderOpen className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="font-medium">Ingen aktive løp</p>
+                    <p className="text-sm">Overfør anbud fra Matches for å starte et løp</p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              savedTenders.map((saved) => (
-                <TableRow key={saved.id}>
+              mineLopTenders.map((tender) => (
+                <TableRow key={tender.id}>
                   <TableCell>
                     <a
-                      href={saved.tender.doffin_url}
+                      href={tender.tender.doffin_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center text-primary hover:text-primary/80"
@@ -168,50 +177,33 @@ export const MatchesTab = () => {
                     </a>
                   </TableCell>
                   <TableCell className="font-medium">
-                    {saved.tender.title}
+                    {tender.tender.title}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {saved.tender.client || "N/A"}
+                    {tender.tender.client || "N/A"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="default">
-                      {saved.evaluation.total_score}
+                    <Badge variant="outline">
+                      {stageLabels[tender.current_stage] || tender.current_stage}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {saved.relevance_score ? (
-                      <Badge variant="outline">{saved.relevance_score}/100</Badge>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {saved.time_criticality ? (
-                      <Badge
-                        variant={
-                          saved.time_criticality === "høy"
-                            ? "destructive"
-                            : saved.time_criticality === "middels"
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {saved.time_criticality}
-                      </Badge>
+                    {tender.relevance_score ? (
+                      <Badge variant="outline">{tender.relevance_score}/100</Badge>
                     ) : (
                       <span className="text-sm text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {formatDate(saved.tender.deadline)}
+                    {formatDate(tender.tender.deadline)}
                   </TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEditTender(saved)}
+                      onClick={() => handleViewTender(tender)}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Eye className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -222,11 +214,11 @@ export const MatchesTab = () => {
       </div>
 
       {selectedTender && (
-        <SavedTenderDialog
+        <TenderWorkflowDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
-          savedTender={selectedTender}
-          onUpdate={loadSavedTenders}
+          tender={selectedTender}
+          onUpdate={loadMineLopTenders}
         />
       )}
     </div>

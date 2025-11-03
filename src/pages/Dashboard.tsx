@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { RadarTab } from "@/components/radar/RadarTab";
 import { MatchesTab } from "@/components/matches/MatchesTab";
+import { MineLopTab } from "@/components/minelop/MineLopTab";
 import { SearchSettingsDialog } from "@/components/matches/SearchSettingsDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Settings } from "lucide-react";
@@ -49,9 +50,7 @@ const Dashboard = () => {
           </TabsContent>
           
           <TabsContent value="mine-lop" className="mt-4">
-            <div className="text-center py-8 text-muted-foreground">
-              Mine Løp-tab kommer snart
-            </div>
+            <MineLopTab />
           </TabsContent>
         </Tabs>
       </main>

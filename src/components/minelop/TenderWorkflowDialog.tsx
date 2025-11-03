@@ -1,0 +1,226 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { ExternalLink, ChevronRight, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type TenderWorkflowDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  tender: any;
+  onUpdate: () => void;
+};
+
+const stages = [
+  { key: "kvalifisering", label: "Kvalifisering" },
+  { key: "analyse_planlegging", label: "Analyse / Planlegging" },
+  { key: "svarer_anbud", label: "Svarer anbud" },
+  { key: "kvalitetssikring", label: "Kvalitetssikring" },
+  { key: "godkjenning", label: "Godkjenning" },
+  { key: "laring", label: "Læring" },
+];
+
+export const TenderWorkflowDialog = ({
+  open,
+  onOpenChange,
+  tender,
+  onUpdate,
+}: TenderWorkflowDialogProps) => {
+  const { toast } = useToast();
+  const [currentStage, setCurrentStage] = useState(tender.current_stage);
+  const [stageNotes, setStageNotes] = useState<Record<string, string>>(
+    tender.stage_notes || {}
+  );
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setCurrentStage(tender.current_stage);
+    setStageNotes(tender.stage_notes || {});
+  }, [tender]);
+
+  const handleSaveNotes = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("saved_tenders")
+        .update({
+          current_stage: currentStage,
+          stage_notes: stageNotes,
+        })
+        .eq("id", tender.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Lagret",
+        description: "Endringene er lagret",
+      });
+      onUpdate();
+    } catch (error) {
+      console.error("Error saving:", error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke lagre endringer",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStageChange = (stageKey: string) => {
+    setCurrentStage(stageKey);
+  };
+
+  const handleNoteChange = (stageKey: string, value: string) => {
+    setStageNotes((prev) => ({
+      ...prev,
+      [stageKey]: value,
+    }));
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Ingen frist";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("no-NO", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const getCurrentStageIndex = () => {
+    return stages.findIndex((s) => s.key === currentStage);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {tender.tender.title}
+            <a
+              href={tender.tender.doffin_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </DialogTitle>
+          <DialogDescription>
+            <div className="space-y-2 mt-2">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Oppdragsgiver:</span>
+                <span>{tender.tender.client || "N/A"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Frist:</span>
+                <span>{formatDate(tender.tender.deadline)}</span>
+              </div>
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Visual Timeline */}
+        <div className="py-6">
+          <div className="flex items-center justify-between">
+            {stages.map((stage, index) => {
+              const isActive = stage.key === currentStage;
+              const isPast = index < getCurrentStageIndex();
+              const isFuture = index > getCurrentStageIndex();
+
+              return (
+                <div key={stage.key} className="flex items-center flex-1">
+                  <button
+                    onClick={() => handleStageChange(stage.key)}
+                    className={cn(
+                      "flex flex-col items-center gap-2 transition-all",
+                      "hover:opacity-80"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all",
+                        isActive &&
+                          "border-primary bg-primary text-primary-foreground scale-110",
+                        isPast &&
+                          "border-green-600 bg-green-600 text-white",
+                        isFuture && "border-muted bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {isPast ? (
+                        <Check className="h-6 w-6" />
+                      ) : (
+                        <span className="text-sm font-bold">{index + 1}</span>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "text-xs text-center max-w-[80px]",
+                        isActive && "font-bold text-primary",
+                        isPast && "text-green-600",
+                        isFuture && "text-muted-foreground"
+                      )}
+                    >
+                      {stage.label}
+                    </span>
+                  </button>
+                  {index < stages.length - 1 && (
+                    <div className="flex-1 h-0.5 mx-2 bg-border" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Stage Notes */}
+        <div className="space-y-6 py-4">
+          {stages.map((stage) => (
+            <div
+              key={stage.key}
+              className={cn(
+                "space-y-2 p-4 rounded-lg border transition-all",
+                stage.key === currentStage
+                  ? "border-primary bg-primary/5"
+                  : "border-border"
+              )}
+            >
+              <Label htmlFor={`notes-${stage.key}`} className="font-bold">
+                {stage.label}
+              </Label>
+              <Textarea
+                id={`notes-${stage.key}`}
+                placeholder={`Notater for ${stage.label}...`}
+                value={stageNotes[stage.key] || ""}
+                onChange={(e) => handleNoteChange(stage.key, e.target.value)}
+                rows={stage.key === currentStage ? 4 : 2}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Lukk
+          </Button>
+          <Button onClick={handleSaveNotes} disabled={saving}>
+            Lagre endringer
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};

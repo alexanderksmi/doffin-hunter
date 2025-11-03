@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Bookmark } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,13 +36,13 @@ interface TenderEvaluation {
 
 export const RadarTab = () => {
   const { organizationId } = useAuth();
+  const { toast } = useToast();
   const [evaluations, setEvaluations] = useState<TenderEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
   const [combinations, setCombinations] = useState<any[]>([]);
   const [minScore, setMinScore] = useState<string>("1");
   const [viewFilter, setViewFilter] = useState<string>("published_desc");
-  const { toast } = useToast();
 
   useEffect(() => {
     if (organizationId) {
@@ -525,6 +525,44 @@ export const RadarTab = () => {
     });
   };
 
+  const handleSaveTender = async (evaluation: any) => {
+    try {
+      const { error } = await supabase
+        .from("saved_tenders")
+        .insert({
+          tender_id: evaluation.tender_id,
+          evaluation_id: evaluation.id,
+          organization_id: organizationId,
+          saved_by: (await supabase.auth.getUser()).data.user?.id,
+          status: "vurdering",
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          toast({
+            title: "Allerede lagret",
+            description: "Dette anbudet er allerede lagret",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        toast({
+          title: "Lagret",
+          description: "Anbudet er lagret i Matches",
+        });
+      }
+    } catch (error) {
+      console.error("Error saving tender:", error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke lagre anbudet",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-4 items-center flex-wrap">
@@ -594,6 +632,7 @@ export const RadarTab = () => {
               <TableHead>Forklaring</TableHead>
               <TableHead>Frist</TableHead>
               <TableHead>Publisert</TableHead>
+              <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -605,7 +644,7 @@ export const RadarTab = () => {
               </TableRow>
             ) : evaluations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   <p className="font-medium">Ingen anbud funnet med minst 1 oppfylt minimumskrav</p>
                 </TableCell>
               </TableRow>
@@ -667,6 +706,16 @@ export const RadarTab = () => {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(evaluation.tender.published_date)}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSaveTender(evaluation)}
+                      title="Lagre anbud"
+                    >
+                      <Bookmark className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))

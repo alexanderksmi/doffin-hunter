@@ -276,40 +276,55 @@ export type Database = {
         Row: {
           activity_log: Json | null
           assigned_to: string | null
+          comments: string | null
           created_at: string | null
+          current_stage: Database["public"]["Enums"]["tender_stage"] | null
           evaluation_id: string
           id: string
           notes: string | null
           organization_id: string
+          relevance_score: number | null
           saved_by: string
+          stage_notes: Json | null
           status: string
           tender_id: string
+          time_criticality: string | null
           updated_at: string | null
         }
         Insert: {
           activity_log?: Json | null
           assigned_to?: string | null
+          comments?: string | null
           created_at?: string | null
+          current_stage?: Database["public"]["Enums"]["tender_stage"] | null
           evaluation_id: string
           id?: string
           notes?: string | null
           organization_id: string
+          relevance_score?: number | null
           saved_by: string
+          stage_notes?: Json | null
           status?: string
           tender_id: string
+          time_criticality?: string | null
           updated_at?: string | null
         }
         Update: {
           activity_log?: Json | null
           assigned_to?: string | null
+          comments?: string | null
           created_at?: string | null
+          current_stage?: Database["public"]["Enums"]["tender_stage"] | null
           evaluation_id?: string
           id?: string
           notes?: string | null
           organization_id?: string
+          relevance_score?: number | null
           saved_by?: string
+          stage_notes?: Json | null
           status?: string
           tender_id?: string
+          time_criticality?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -632,6 +647,13 @@ export type Database = {
         | "lead_partner"
         | "partner_led"
         | "partner_only"
+      tender_stage:
+        | "kvalifisering"
+        | "analyse_planlegging"
+        | "svarer_anbud"
+        | "kvalitetssikring"
+        | "godkjenning"
+        | "laring"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -766,6 +788,14 @@ export const Constants = {
         "lead_partner",
         "partner_led",
         "partner_only",
+      ],
+      tender_stage: [
+        "kvalifisering",
+        "analyse_planlegging",
+        "svarer_anbud",
+        "kvalitetssikring",
+        "godkjenning",
+        "laring",
       ],
     },
   },
