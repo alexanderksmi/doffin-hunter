@@ -48,6 +48,7 @@ export const SavedTenderDialog = ({
   const [saving, setSaving] = useState(false);
   const [leadProfileKeywords, setLeadProfileKeywords] = useState<any[]>([]);
   const [partnerProfileKeywords, setPartnerProfileKeywords] = useState<any[]>([]);
+  const [combinedScore, setCombinedScore] = useState(0);
 
   useEffect(() => {
     setComments(savedTender.comments || "");
@@ -56,6 +57,9 @@ export const SavedTenderDialog = ({
     
     // Load profile keywords using saved_tender's own combination data
     const loadProfileKeywords = async () => {
+      let leadMatched: any[] = [];
+      let partnerMatched: any[] = [];
+
       // Get keywords from lead profile
       if (savedTender.lead_profile_id) {
         const { data: leadKeywords } = await supabase
@@ -63,10 +67,11 @@ export const SavedTenderDialog = ({
           .select("keyword")
           .eq("profile_id", savedTender.lead_profile_id);
         
-        const leadMatched = (savedTender.evaluation.met_minimum_requirements || [])
+        leadMatched = (savedTender.evaluation.met_minimum_requirements || [])
           .filter((req: any) => 
             leadKeywords?.some(k => k.keyword.toLowerCase() === req.keyword.toLowerCase())
-          );
+          )
+          .map((req: any) => ({ ...req, source: 'lead' }));
         setLeadProfileKeywords(leadMatched);
       }
 
@@ -78,13 +83,25 @@ export const SavedTenderDialog = ({
           .select("keyword")
           .eq("profile_id", savedTender.partner_profile_id);
         
-        const partnerMatched = (savedTender.evaluation.met_minimum_requirements || [])
+        partnerMatched = (savedTender.evaluation.met_minimum_requirements || [])
           .filter((req: any) => 
             partnerKeywords?.some(k => k.keyword.toLowerCase() === req.keyword.toLowerCase())
-          );
+          )
+          .map((req: any) => ({ ...req, source: 'partner' }));
         setPartnerProfileKeywords(partnerMatched);
       } else {
         setPartnerProfileKeywords([]);
+      }
+
+      // Calculate combined score for combinations
+      if (savedTender.combination_type === 'combination') {
+        const allKeywords = [...leadMatched, ...partnerMatched];
+        const uniqueKeywords = Array.from(
+          new Map(allKeywords.map(req => [req.keyword.toLowerCase(), req])).values()
+        );
+        setCombinedScore(uniqueKeywords.length);
+      } else {
+        setCombinedScore(savedTender.evaluation.total_score);
       }
     };
 
@@ -195,7 +212,7 @@ export const SavedTenderDialog = ({
               <div className="flex items-center gap-2">
                 <span className="font-medium">Score:</span>
                 <Badge variant="default">
-                  {savedTender.evaluation.total_score}
+                  {combinedScore}
                 </Badge>
               </div>
               {savedTender.combination_type === 'combination' && savedTender.partnerName && (
@@ -206,29 +223,46 @@ export const SavedTenderDialog = ({
                   </Badge>
                 </div>
               )}
-              {leadProfileKeywords.length > 0 && (
-                <div className="mt-2">
-                  <span className="font-medium text-sm">Dine treff:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {leadProfileKeywords.map((req: any, idx: number) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {req.keyword}
-                      </Badge>
-                    ))}
+              {savedTender.combination_type === 'combination' ? (
+                <>
+                  {leadProfileKeywords.length > 0 && (
+                    <div className="mt-2">
+                      <span className="font-medium text-sm">Dine treff:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {leadProfileKeywords.map((req: any, idx: number) => (
+                          <Badge key={idx} variant="outline" className="text-xs border-blue-600 text-blue-600">
+                            {req.keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {partnerProfileKeywords.length > 0 && (
+                    <div className="mt-2">
+                      <span className="font-medium text-sm">Partner treff:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {partnerProfileKeywords.map((req: any, idx: number) => (
+                          <Badge key={idx} variant="outline" className="text-xs border-green-600 text-green-600">
+                            {req.keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                leadProfileKeywords.length > 0 && (
+                  <div className="mt-2">
+                    <span className="font-medium text-sm">Treff:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {leadProfileKeywords.map((req: any, idx: number) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {req.keyword}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              {partnerProfileKeywords.length > 0 && (
-                <div className="mt-2">
-                  <span className="font-medium text-sm">Partner treff:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {partnerProfileKeywords.map((req: any, idx: number) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        {req.keyword}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                )
               )}
             </div>
           </DialogDescription>
