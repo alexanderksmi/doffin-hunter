@@ -177,17 +177,19 @@ export const RadarTab = () => {
         console.log('Fetch completed with status:', status);
       }
 
-      // Now trigger evaluation of tenders
+      // Now trigger evaluation of tenders in incremental mode
       toast({
         title: "Evaluerer anbud",
         description: "Beregner relevans for nye anbud...",
       });
 
-      await supabase.functions.invoke('evaluate-tenders');
+      await supabase.functions.invoke('evaluate-tenders', {
+        body: { mode: 'incremental' }
+      });
       
       toast({
         title: "Synkronisering fullført",
-        description: "Alle anbud er oppdatert",
+        description: "Alle nye anbud er oppdatert",
       });
 
       setIsSyncing(false);
@@ -201,6 +203,37 @@ export const RadarTab = () => {
       });
       setIsSyncing(false);
       fetchEvaluations();
+    }
+  };
+
+  const fullReEvaluation = async () => {
+    try {
+      setLoading(true);
+
+      toast({
+        title: "Full re-evaluering",
+        description: "Evaluerer alle anbud på nytt...",
+      });
+
+      await supabase.functions.invoke('evaluate-tenders', {
+        body: { mode: 'full' }
+      });
+      
+      toast({
+        title: "Re-evaluering fullført",
+        description: "Alle anbud er evaluert på nytt",
+      });
+
+      fetchEvaluations();
+    } catch (error) {
+      console.error('Error in full re-evaluation:', error);
+      toast({
+        title: "Feil ved re-evaluering",
+        description: "Kunne ikke re-evaluere anbud",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -767,12 +800,22 @@ export const RadarTab = () => {
 
         <Button 
           onClick={manualSyncTenders} 
-          disabled={isSyncing}
+          disabled={isSyncing || loading}
           variant="outline"
           className="gap-2"
         >
           <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
           {isSyncing ? "Synkroniserer..." : "Sync anbud"}
+        </Button>
+
+        <Button 
+          onClick={fullReEvaluation} 
+          disabled={loading}
+          variant="secondary"
+          className="gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading && !isSyncing ? 'animate-spin' : ''}`} />
+          Full re-evaluering
         </Button>
 
         <div className="ml-auto text-sm text-muted-foreground">

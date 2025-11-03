@@ -58,7 +58,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting tender evaluation...');
+    const { mode = 'incremental' } = await req.json().catch(() => ({ mode: 'incremental' }));
+    console.log(`Starting tender evaluation in ${mode} mode...`);
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -77,7 +78,7 @@ serve(async (req) => {
     console.log(`Evaluating for ${organizations.length} organizations...`);
 
     for (const org of organizations) {
-      await evaluateOrganization(supabase, org.id);
+      await evaluateOrganization(supabase, org.id, mode);
     }
 
     return new Response(
@@ -94,7 +95,7 @@ serve(async (req) => {
   }
 });
 
-async function evaluateOrganization(supabase: any, orgId: string) {
+async function evaluateOrganization(supabase: any, orgId: string, mode: string = 'incremental') {
   console.log(`\n=== Evaluating org ${orgId} ===`);
 
   // Fetch all profiles for this org with their keywords
@@ -155,7 +156,7 @@ async function evaluateOrganization(supabase: any, orgId: string) {
   console.log(`Built ${combinations.length} combinations (1 own + ${partnerProfiles.length} partners)`);
 
   // Fetch tenders for this org
-  const { data: tenders, error: tendersError } = await supabase
+  let { data: tenders, error: tendersError } = await supabase
     .from('tenders')
     .select('id, title, body, cpv_codes')
     .eq('org_id', orgId);
@@ -168,6 +169,29 @@ async function evaluateOrganization(supabase: any, orgId: string) {
   if (!tenders || tenders.length === 0) {
     console.log(`No tenders found for org ${orgId}`);
     return;
+  }
+
+  // Filter tenders based on mode
+  if (mode === 'incremental') {
+    // Get all tender IDs that already have evaluations for this org
+    const { data: existingEvals } = await supabase
+      .from('tender_evaluations')
+      .select('tender_id')
+      .eq('organization_id', orgId);
+    
+    const evaluatedTenderIds = new Set(existingEvals?.map((e: any) => e.tender_id) || []);
+    
+    // Only evaluate tenders that don't have evaluations yet
+    tenders = tenders.filter((t: any) => !evaluatedTenderIds.has(t.id));
+    
+    console.log(`Incremental mode: ${tenders.length} new tenders to evaluate (${evaluatedTenderIds.size} already evaluated)`);
+    
+    if (tenders.length === 0) {
+      console.log(`No new tenders to evaluate for org ${orgId}`);
+      return;
+    }
+  } else {
+    console.log(`Full mode: Evaluating all ${tenders.length} tenders`);
   }
 
   console.log(`Evaluating ${tenders.length} tenders against ${combinations.length} combinations...`);
