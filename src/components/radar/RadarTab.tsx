@@ -19,6 +19,8 @@ interface TenderEvaluation {
   total_score: number;
   explanation: string;
   met_minimum_requirements: any[];
+  matched_support_keywords: any[];
+  matched_negative_keywords: any[];
   lead_profile_id: string;
   partner_profile_id: string | null;
   tender: {
@@ -878,24 +880,37 @@ export const RadarTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
+                      {/* Show minimum requirements (no points, just qualification) */}
                       {(evaluation.met_minimum_requirements as any[]).map((req: any, idx: number) => {
-                        let badgeClass = "";
+                        let badgeClass = "bg-gray-100 text-gray-700 border-gray-300";
                         if (req.source === 'partner' && evaluation.partner_profile?.profile_name) {
-                          // Get partner index from partner_profile_id
                           const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id!) ?? 0;
                           const colors = getPartnerColor(partnerIndex);
-                          badgeClass = `${colors.border} ${colors.text}`;
+                          badgeClass = `${colors.border} ${colors.text} bg-gray-50`;
                         } else if (req.source === 'lead' && evaluation.combination_type !== 'solo') {
-                          badgeClass = 'border-blue-600 text-blue-600';
+                          badgeClass = 'border-blue-600 text-blue-600 bg-blue-50';
                         }
                         
                         return (
                           <Badge 
-                            key={idx} 
+                            key={`min-${idx}`} 
                             variant="outline" 
                             className={`text-xs ${badgeClass}`}
                           >
                             {req.keyword}
+                          </Badge>
+                        );
+                      })}
+                      
+                      {/* Show support keywords (these give points) */}
+                      {(evaluation.matched_support_keywords as any[] || []).map((kw: any, idx: number) => {
+                        return (
+                          <Badge 
+                            key={`support-${idx}`} 
+                            variant="default"
+                            className="text-xs bg-green-600 hover:bg-green-700"
+                          >
+                            {kw.keyword} (+{kw.weight})
                           </Badge>
                         );
                       })}
