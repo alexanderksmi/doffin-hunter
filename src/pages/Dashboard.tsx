@@ -1,60 +1,77 @@
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { ProfileMenu } from "@/components/ProfileMenu";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 import { RadarTab } from "@/components/radar/RadarTab";
 import { MatchesTab } from "@/components/matches/MatchesTab";
 import { MineLopTab } from "@/components/minelop/MineLopTab";
 import { SearchSettingsDialog } from "@/components/matches/SearchSettingsDialog";
-import { useAuth } from "@/contexts/AuthContext";
-import { Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
-  const { userRole } = useAuth();
+  const { userRole, organizationId } = useAuth();
+  const [searchParams] = useSearchParams();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [organizationName, setOrganizationName] = useState<string>("");
   const isAdmin = userRole === "admin";
 
+  const activeTab = searchParams.get("tab") || "radar";
+
+  useEffect(() => {
+    const fetchOrganization = async () => {
+      if (!organizationId) return;
+      
+      const { data } = await supabase
+        .from("organizations")
+        .select("name")
+        .eq("id", organizationId)
+        .single();
+      
+      if (data) {
+        setOrganizationName(data.name);
+      }
+    };
+
+    fetchOrganization();
+  }, [organizationId]);
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-foreground">Anbudsmonitor</h1>
-          <div className="flex items-center gap-4">
-            {isAdmin && (
-              <Button onClick={() => setSettingsOpen(true)} variant="outline">
-                <Settings className="mr-2 h-4 w-4" />
-                Innstillinger for søk
-              </Button>
-            )}
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col">
+          <header className="h-16 border-b bg-card flex items-center justify-between px-6">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger />
+              <h1 className="text-xl font-bold text-foreground">
+                Anbudsmonitor{organizationName && ` - ${organizationName}`}
+              </h1>
+            </div>
             <ProfileMenu />
-          </div>
+          </header>
+
+          <main className="flex-1 p-8">
+            {activeTab === "radar" && <RadarTab />}
+            {activeTab === "matches" && <MatchesTab />}
+            {activeTab === "minelop" && <MineLopTab />}
+            {activeTab === "settings" && isAdmin && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6">Innstillinger for søk</h2>
+                <Button onClick={() => setSettingsOpen(true)} variant="default">
+                  Åpne søkeinnstillinger
+                </Button>
+              </div>
+            )}
+          </main>
+
+          <SearchSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
         </div>
-      </header>
-
-      <SearchSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-
-      <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="radar" className="w-full">
-          <TabsList>
-            <TabsTrigger value="radar">Radar</TabsTrigger>
-            <TabsTrigger value="matches">Matches</TabsTrigger>
-            <TabsTrigger value="mine-lop">Mine Løp</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="radar" className="mt-4">
-            <RadarTab />
-          </TabsContent>
-          
-          <TabsContent value="matches" className="mt-4">
-            <MatchesTab />
-          </TabsContent>
-          
-          <TabsContent value="mine-lop" className="mt-4">
-            <MineLopTab />
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 };
 
