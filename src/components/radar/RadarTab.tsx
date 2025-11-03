@@ -882,13 +882,12 @@ export const RadarTab = () => {
                     <div className="flex flex-wrap gap-1">
                       {/* Show minimum requirements (no points, just qualification) */}
                       {(evaluation.met_minimum_requirements as any[]).map((req: any, idx: number) => {
-                        let badgeClass = "bg-gray-100 text-gray-700 border-gray-300";
-                        if (req.source === 'partner' && evaluation.partner_profile?.profile_name) {
-                          const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id!) ?? 0;
+                        let badgeClass = "bg-blue-100 text-blue-700 border-blue-300"; // Documaster default
+                        
+                        if (req.source === 'partner' && evaluation.partner_profile_id) {
+                          const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
                           const colors = getPartnerColor(partnerIndex);
-                          badgeClass = `${colors.border} ${colors.text} bg-gray-50`;
-                        } else if (req.source === 'lead' && evaluation.combination_type !== 'solo') {
-                          badgeClass = 'border-blue-600 text-blue-600 bg-blue-50';
+                          badgeClass = `${colors.bg} ${colors.text} ${colors.border}`;
                         }
                         
                         return (
@@ -904,11 +903,21 @@ export const RadarTab = () => {
                       
                       {/* Show support keywords (these give points) */}
                       {(evaluation.matched_support_keywords as any[] || []).map((kw: any, idx: number) => {
+                        // For solo evaluations, use blue (Documaster)
+                        // For combinations, determine color based on which profile the keyword came from
+                        let badgeClass = "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"; // Documaster default
+                        
+                        // If this is a partner profile evaluation, use partner color
+                        if (evaluation.combination_type === 'solo' && evaluation.partner_profile_id) {
+                          const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
+                          const colors = getPartnerColor(partnerIndex);
+                          badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white border-transparent`;
+                        }
+                        
                         return (
                           <Badge 
                             key={`support-${idx}`} 
-                            variant="default"
-                            className="text-xs bg-green-600 hover:bg-green-700"
+                            className={`text-xs ${badgeClass}`}
                           >
                             {kw.keyword} (+{kw.weight})
                           </Badge>
