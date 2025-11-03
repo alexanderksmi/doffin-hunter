@@ -409,6 +409,50 @@ export type Database = {
           },
         ]
       }
+      tender_contacts: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          role: string | null
+          saved_tender_id: string
+          stage: Database["public"]["Enums"]["tender_stage"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          role?: string | null
+          saved_tender_id: string
+          stage: Database["public"]["Enums"]["tender_stage"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string | null
+          saved_tender_id?: string
+          stage?: Database["public"]["Enums"]["tender_stage"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_contacts_saved_tender_id_fkey"
+            columns: ["saved_tender_id"]
+            isOneToOne: false
+            referencedRelation: "saved_tenders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tender_evaluations: {
         Row: {
           all_minimum_requirements_met: boolean
@@ -517,6 +561,44 @@ export type Database = {
           },
         ]
       }
+      tender_owners: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          saved_tender_id: string
+          stage: Database["public"]["Enums"]["tender_stage"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          saved_tender_id: string
+          stage: Database["public"]["Enums"]["tender_stage"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          saved_tender_id?: string
+          stage?: Database["public"]["Enums"]["tender_stage"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_owners_saved_tender_id_fkey"
+            columns: ["saved_tender_id"]
+            isOneToOne: false
+            referencedRelation: "saved_tenders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tender_sync_log: {
         Row: {
           completed_at: string | null
@@ -546,6 +628,60 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      tender_tasks: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          owner_id: string
+          saved_tender_id: string
+          stage: Database["public"]["Enums"]["tender_stage"]
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner_id: string
+          saved_tender_id: string
+          stage: Database["public"]["Enums"]["tender_stage"]
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner_id?: string
+          saved_tender_id?: string
+          stage?: Database["public"]["Enums"]["tender_stage"]
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_tasks_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "tender_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_tasks_saved_tender_id_fkey"
+            columns: ["saved_tender_id"]
+            isOneToOne: false
+            referencedRelation: "saved_tenders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tenders: {
         Row: {

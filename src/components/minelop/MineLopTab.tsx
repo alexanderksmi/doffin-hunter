@@ -4,10 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink, Eye, FolderOpen } from "lucide-react";
+import { Loader2, ExternalLink, Eye, FolderOpen, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TenderWorkflowDialog } from "./TenderWorkflowDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type MineLopTender = {
   id: string;
@@ -49,6 +59,8 @@ export const MineLopTab = () => {
   const [mineLopTenders, setMineLopTenders] = useState<MineLopTender[]>([]);
   const [selectedTender, setSelectedTender] = useState<MineLopTender | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tenderToDelete, setTenderToDelete] = useState<MineLopTender | null>(null);
 
   const isAdmin = userRole === "admin";
 
@@ -101,6 +113,40 @@ export const MineLopTab = () => {
     setDialogOpen(true);
   };
 
+  const handleDeleteClick = (tender: MineLopTender) => {
+    setTenderToDelete(tender);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!tenderToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("saved_tenders")
+        .delete()
+        .eq("id", tenderToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Slettet",
+        description: "Anbudet er fjernet fra Mine Løp",
+      });
+      loadMineLopTenders();
+    } catch (error) {
+      console.error("Error deleting tender:", error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke slette anbudet",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setTenderToDelete(null);
+    }
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Ingen frist";
     const date = new Date(dateString);
@@ -149,7 +195,7 @@ export const MineLopTab = () => {
               <TableHead>Fase</TableHead>
               <TableHead>Relevans</TableHead>
               <TableHead>Frist</TableHead>
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="w-24"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -198,13 +244,22 @@ export const MineLopTab = () => {
                     {formatDate(tender.tender.deadline)}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewTender(tender)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewTender(tender)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteClick(tender)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -221,6 +276,25 @@ export const MineLopTab = () => {
           onUpdate={loadMineLopTenders}
         />
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Slett anbud fra Mine Løp?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Er du sikker på at du vil fjerne dette anbudet fra Mine Løp? Dette vil
+              slette alle tilknyttede notater, kontaktpersoner, anbudseiere og oppgaver.
+              Denne handlingen kan ikke angres.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              Slett
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

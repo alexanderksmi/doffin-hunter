@@ -9,11 +9,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, ChevronRight, Check } from "lucide-react";
+import { ExternalLink, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StageNotes } from "./StageNotes";
+import { StageContacts } from "./StageContacts";
+import { StageOwners } from "./StageOwners";
+import { Separator } from "@/components/ui/separator";
 
 type TenderWorkflowDialogProps = {
   open: boolean;
@@ -186,30 +188,26 @@ export const TenderWorkflowDialog = ({
           </div>
         </div>
 
-        {/* Stage Notes */}
+        <Separator className="my-6" />
+
+        {/* Current Stage Content */}
         <div className="space-y-6 py-4">
-          {stages.map((stage) => (
-            <div
-              key={stage.key}
-              className={cn(
-                "space-y-2 p-4 rounded-lg border transition-all",
-                stage.key === currentStage
-                  ? "border-primary bg-primary/5"
-                  : "border-border"
-              )}
-            >
-              <Label htmlFor={`notes-${stage.key}`} className="font-bold">
-                {stage.label}
-              </Label>
-              <Textarea
-                id={`notes-${stage.key}`}
-                placeholder={`Notater for ${stage.label}...`}
-                value={stageNotes[stage.key] || ""}
-                onChange={(e) => handleNoteChange(stage.key, e.target.value)}
-                rows={stage.key === currentStage ? 4 : 2}
-              />
-            </div>
-          ))}
+          <div className="space-y-6">
+            <StageNotes
+              stageKey={currentStage}
+              stageLabel={stages.find((s) => s.key === currentStage)?.label || ""}
+              notes={stageNotes[currentStage] || ""}
+              onChange={(value) => handleNoteChange(currentStage, value)}
+            />
+
+            <Separator />
+
+            <StageContacts savedTenderId={tender.id} stage={currentStage} />
+
+            <Separator />
+
+            <StageOwners savedTenderId={tender.id} stage={currentStage} />
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
