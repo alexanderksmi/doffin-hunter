@@ -908,28 +908,7 @@ export const RadarTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {/* Show minimum requirements (no points, just qualification) */}
-                      {(evaluation.met_minimum_requirements as any[]).map((req: any, idx: number) => {
-                        let badgeClass = "bg-blue-100 text-blue-700 border-blue-300"; // Documaster default
-                        
-                        if (req.source === 'partner' && evaluation.partner_profile_id) {
-                          const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
-                          const colors = getPartnerColor(partnerIndex);
-                          badgeClass = `${colors.bg} ${colors.text} ${colors.border}`;
-                        }
-                        
-                        return (
-                          <Badge 
-                            key={`min-${idx}`} 
-                            variant="outline" 
-                            className={`text-xs ${badgeClass}`}
-                          >
-                            {req.keyword}
-                          </Badge>
-                        );
-                      })}
-                      
-                      {/* Show support keywords (these give points) */}
+                      {/* Show only support keywords (these give points) */}
                       {(evaluation.matched_support_keywords as any[] || []).map((kw: any, idx: number) => {
                         // Determine color based on source (lead/partner) or profile type
                         let badgeClass = "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"; // Documaster default
