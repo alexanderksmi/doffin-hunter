@@ -195,7 +195,114 @@ export const RadarTab = () => {
         return;
       }
 
-      const filtered = (allEvals || []).filter((evaluation: any) => {
+      // Also create combination evaluations for "Alle treff"
+      const allCombinedEvals: any[] = [];
+      
+      for (const combo of combinations) {
+        if (combo.type === 'combination') {
+          // Fetch evaluations for both profiles
+          const { data: ownEvals } = await supabase
+            .from('tender_evaluations')
+            .select(`
+              *,
+              tender:tender_id (
+                id,
+                title,
+                client,
+                deadline,
+                published_date,
+                doffin_url,
+                body
+              ),
+              lead_profile:lead_profile_id (profile_name)
+            `)
+            .eq('organization_id', organizationId)
+            .eq('lead_profile_id', combo.ownProfileId)
+            .gte('total_score', 1);
+
+          const { data: partnerEvals } = await supabase
+            .from('tender_evaluations')
+            .select(`
+              *,
+              tender:tender_id (
+                id,
+                title,
+                client,
+                deadline,
+                published_date,
+                doffin_url,
+                body
+              ),
+              lead_profile:lead_profile_id (profile_name)
+            `)
+            .eq('organization_id', organizationId)
+            .eq('lead_profile_id', combo.partnerProfileId)
+            .gte('total_score', 1);
+
+          // Find tenders that match BOTH profiles
+          const ownTenderIds = new Set((ownEvals || []).map((e: any) => e.tender_id));
+          const partnerTenderIds = new Set((partnerEvals || []).map((e: any) => e.tender_id));
+          const bothTenderIds = [...ownTenderIds].filter(id => partnerTenderIds.has(id));
+
+          // Create combined evaluations
+          const combinedEvals = bothTenderIds.map(tenderId => {
+            const ownEval = ownEvals?.find((e: any) => e.tender_id === tenderId);
+            const partnerEval = partnerEvals?.find((e: any) => e.tender_id === tenderId);
+            
+            if (!ownEval || !partnerEval) return null;
+
+            const ownReqs = ((ownEval.met_minimum_requirements as any) || []).map((req: any) => ({
+              ...req,
+              source: 'lead'
+            }));
+            const partnerReqs = ((partnerEval.met_minimum_requirements as any) || []).map((req: any) => ({
+              ...req,
+              source: 'partner'
+            }));
+
+            const allReqs = [...ownReqs, ...partnerReqs];
+            const uniqueReqs = Array.from(
+              new Map(allReqs.map(req => [req.keyword.toLowerCase(), req])).values()
+            );
+
+            const combinedScore = uniqueReqs.length;
+
+            return {
+              ...ownEval,
+              met_minimum_requirements: uniqueReqs,
+              total_score: combinedScore,
+              combination_type: 'combination',
+              explanation: `${combo.ownProfileName}: ${ownReqs.length} krav, ${combo.partnerProfileName}: ${partnerReqs.length} krav`,
+              _combo_label: `${combo.ownProfileName} + ${combo.partnerProfileName}`
+            };
+          }).filter(Boolean);
+
+          allCombinedEvals.push(...combinedEvals);
+        }
+      }
+
+      // Merge solo and combination evaluations, keeping the one with highest score per tender
+      const tenderMap = new Map<string, any>();
+      
+      // Add solo evaluations
+      (allEvals || []).forEach((evaluation: any) => {
+        const existing = tenderMap.get(evaluation.tender_id);
+        if (!existing || evaluation.total_score > existing.total_score) {
+          tenderMap.set(evaluation.tender_id, evaluation);
+        }
+      });
+
+      // Add combination evaluations (may override solo if score is higher)
+      allCombinedEvals.forEach((evaluation: any) => {
+        const existing = tenderMap.get(evaluation.tender_id);
+        if (!existing || evaluation.total_score > existing.total_score) {
+          tenderMap.set(evaluation.tender_id, evaluation);
+        }
+      });
+
+      const allEvalsWithCombos = Array.from(tenderMap.values());
+
+      const filtered = allEvalsWithCombos.filter((evaluation: any) => {
         if (evaluation.total_score < scoreThreshold) return false;
         return true;
       });
@@ -385,7 +492,12 @@ export const RadarTab = () => {
     }
   };
 
-  const getCombinationLabel = (evaluation: TenderEvaluation) => {
+  const getCombinationLabel = (evaluation: any) => {
+    // Check if we have a cached combo label (from "Alle treff")
+    if (evaluation._combo_label) {
+      return evaluation._combo_label;
+    }
+    
     if (evaluation.combination_type === 'combination') {
       const combo = combinations.find(c => c.type === 'combination');
       if (combo) {
