@@ -449,7 +449,7 @@ export const RadarTab = () => {
             <SelectContent>
               <SelectItem value="published_desc">Publiseringsdato: Ny til gammel</SelectItem>
               <SelectItem value="published_asc">Publiseringsdato: Gammel til ny</SelectItem>
-              <SelectItem value="deadline_desc">Frist: Sen til snart (N/A er senest)</SelectItem>
+              <SelectItem value="deadline_desc">Frist: Sen til snart</SelectItem>
               <SelectItem value="deadline_asc">Frist: Snart til sen</SelectItem>
             </SelectContent>
           </Select>
