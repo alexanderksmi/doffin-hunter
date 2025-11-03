@@ -406,6 +406,7 @@ export const RadarTab = () => {
             
             if (!ownEval || !partnerEval) return null;
 
+            // Both profiles must have met at least 1 minimum requirement (already filtered by total_score >= 1)
             const ownReqs = ((ownEval.met_minimum_requirements as any) || []).map((req: any) => ({
               ...req,
               source: 'lead'
@@ -420,14 +421,28 @@ export const RadarTab = () => {
               new Map(allReqs.map(req => [req.keyword.toLowerCase(), req])).values()
             );
 
-            const combinedScore = uniqueReqs.length;
+            // Combine support keywords from both profiles
+            const ownSupport = ((ownEval.matched_support_keywords as any) || []).map((kw: any) => ({
+              ...kw,
+              source: 'lead'
+            }));
+            const partnerSupport = ((partnerEval.matched_support_keywords as any) || []).map((kw: any) => ({
+              ...kw,
+              source: 'partner'
+            }));
+            const allSupport = [...ownSupport, ...partnerSupport];
+
+            // Combined score = sum of support keyword scores from BOTH profiles
+            const combinedScore = ownEval.total_score + partnerEval.total_score;
 
             return {
               ...ownEval,
               met_minimum_requirements: uniqueReqs,
+              matched_support_keywords: allSupport,
               total_score: combinedScore,
               combination_type: 'combination',
-              explanation: `${combo.ownProfileName}: ${ownReqs.length} krav, ${combo.partnerProfileName}: ${partnerReqs.length} krav`,
+              partner_profile_id: combo.partnerProfileId,
+              explanation: `${combo.ownProfileName}: ${ownEval.total_score} poeng, ${combo.partnerProfileName}: ${partnerEval.total_score} poeng`,
               _combo_label: `${combo.ownProfileName} + ${combo.partnerProfileName}`
             };
           }).filter(Boolean);
@@ -590,15 +605,28 @@ export const RadarTab = () => {
           new Map(allReqs.map(req => [req.keyword.toLowerCase(), req])).values()
         );
 
-        // Calculate combined score as the total number of unique met requirements
-        const combinedScore = uniqueReqs.length;
+        // Combine support keywords from both profiles
+        const ownSupport = ((ownEval.matched_support_keywords as any) || []).map((kw: any) => ({
+          ...kw,
+          source: 'lead'
+        }));
+        const partnerSupport = ((partnerEval.matched_support_keywords as any) || []).map((kw: any) => ({
+          ...kw,
+          source: 'partner'
+        }));
+        const allSupport = [...ownSupport, ...partnerSupport];
+
+        // Combined score = sum of support keyword scores from BOTH profiles
+        const combinedScore = ownEval.total_score + partnerEval.total_score;
 
         return {
           ...ownEval,
           met_minimum_requirements: uniqueReqs,
+          matched_support_keywords: allSupport,
           total_score: combinedScore,
           combination_type: 'combination',
-          explanation: `${combo.ownProfileName}: ${ownReqs.length} krav, ${combo.partnerProfileName}: ${partnerReqs.length} krav`
+          partner_profile_id: combo.partnerProfileId,
+          explanation: `${combo.ownProfileName}: ${ownEval.total_score} poeng, ${combo.partnerProfileName}: ${partnerEval.total_score} poeng`
         };
       }).filter(Boolean);
 
@@ -903,12 +931,21 @@ export const RadarTab = () => {
                       
                       {/* Show support keywords (these give points) */}
                       {(evaluation.matched_support_keywords as any[] || []).map((kw: any, idx: number) => {
-                        // For solo evaluations, use blue (Documaster)
-                        // For combinations, determine color based on which profile the keyword came from
+                        // Determine color based on source (lead/partner) or profile type
                         let badgeClass = "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"; // Documaster default
                         
-                        // If this is a partner profile evaluation, use partner color
-                        if (evaluation.combination_type === 'solo' && evaluation.partner_profile_id) {
+                        // For combinations, use source to determine color
+                        if (evaluation.combination_type === 'combination') {
+                          if (kw.source === 'partner' && evaluation.partner_profile_id) {
+                            const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
+                            const colors = getPartnerColor(partnerIndex);
+                            badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white border-transparent`;
+                          } else if (kw.source === 'lead') {
+                            badgeClass = "bg-blue-600 hover:bg-blue-700 text-white border-blue-600";
+                          }
+                        }
+                        // For solo evaluations from partner profiles
+                        else if (evaluation.combination_type === 'solo' && evaluation.partner_profile_id) {
                           const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
                           const colors = getPartnerColor(partnerIndex);
                           badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white border-transparent`;
