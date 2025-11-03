@@ -54,14 +54,14 @@ export const SavedTenderDialog = ({
     setRelevanceScore(savedTender.relevance_score || 50);
     setTimeCriticality(savedTender.time_criticality || "middels");
     
-    // Load profile keywords
+    // Load profile keywords using saved_tender's own combination data
     const loadProfileKeywords = async () => {
       // Get keywords from lead profile
-      if (savedTender.evaluation.lead_profile_id) {
+      if (savedTender.lead_profile_id) {
         const { data: leadKeywords } = await supabase
           .from("minimum_requirements")
           .select("keyword")
-          .eq("profile_id", savedTender.evaluation.lead_profile_id);
+          .eq("profile_id", savedTender.lead_profile_id);
         
         const leadMatched = (savedTender.evaluation.met_minimum_requirements || [])
           .filter((req: any) => 
@@ -70,13 +70,13 @@ export const SavedTenderDialog = ({
         setLeadProfileKeywords(leadMatched);
       }
 
-      // Get keywords from partner profile if it's a match
-      if (savedTender.evaluation.combination_type === 'with_partner' && 
-          savedTender.evaluation.partner_profile_id) {
+      // Get keywords from partner profile if it's a combination
+      if (savedTender.combination_type === 'combination' && 
+          savedTender.partner_profile_id) {
         const { data: partnerKeywords } = await supabase
           .from("minimum_requirements")
           .select("keyword")
-          .eq("profile_id", savedTender.evaluation.partner_profile_id);
+          .eq("profile_id", savedTender.partner_profile_id);
         
         const partnerMatched = (savedTender.evaluation.met_minimum_requirements || [])
           .filter((req: any) => 
@@ -198,11 +198,11 @@ export const SavedTenderDialog = ({
                   {savedTender.evaluation.total_score}
                 </Badge>
               </div>
-              {savedTender.evaluation.combination_type === 'with_partner' && (
+              {savedTender.combination_type === 'combination' && savedTender.partnerName && (
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Partner:</span>
                   <Badge variant="secondary">
-                    {savedTender.evaluation.partner_name || "Partner"}
+                    {savedTender.partnerName}
                   </Badge>
                 </div>
               )}

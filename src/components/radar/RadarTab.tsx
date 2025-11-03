@@ -527,6 +527,22 @@ export const RadarTab = () => {
 
   const handleSaveTender = async (evaluation: any) => {
     try {
+      // Determine if this is a combination or solo save
+      const isCombination = evaluation.combination_type === 'combination';
+      
+      // Find the combo to get profile IDs
+      let leadProfileId = evaluation.lead_profile_id;
+      let partnerProfileId = evaluation.partner_profile_id;
+      
+      if (isCombination && !partnerProfileId) {
+        // For "Alle treff" combinations, we need to find the combo
+        const combo = combinations.find(c => c.type === 'combination');
+        if (combo) {
+          leadProfileId = combo.ownProfileId;
+          partnerProfileId = combo.partnerProfileId;
+        }
+      }
+
       const { error } = await supabase
         .from("saved_tenders")
         .insert({
@@ -535,6 +551,9 @@ export const RadarTab = () => {
           organization_id: organizationId,
           saved_by: (await supabase.auth.getUser()).data.user?.id,
           status: "vurdering",
+          combination_type: isCombination ? 'combination' : 'solo',
+          lead_profile_id: leadProfileId,
+          partner_profile_id: isCombination ? partnerProfileId : null,
         });
 
       if (error) {

@@ -23,11 +23,15 @@ type SavedTender = {
   id: string;
   tender_id: string;
   evaluation_id: string;
+  combination_type: string;
+  lead_profile_id: string | null;
+  partner_profile_id: string | null;
   relevance_score: number | null;
   time_criticality: string | null;
   comments: string | null;
   status: string;
   created_at: string;
+  partnerName?: string;
   tender: {
     id: string;
     title: string;
@@ -39,10 +43,6 @@ type SavedTender = {
   evaluation: {
     total_score: number;
     met_minimum_requirements: any[];
-    combination_type: string;
-    lead_profile_id: string;
-    partner_profile_id: string | null;
-    partner_name?: string;
   };
 };
 
@@ -76,15 +76,11 @@ export const MatchesTab = () => {
             title,
             client,
             deadline,
-            published_date,
             doffin_url
           ),
           evaluation:evaluation_id (
             total_score,
-            met_minimum_requirements,
-            combination_type,
-            lead_profile_id,
-            partner_profile_id
+            met_minimum_requirements
           )
         `)
         .eq("organization_id", organizationId)
@@ -93,30 +89,22 @@ export const MatchesTab = () => {
 
       if (error) throw error;
 
-      // Fetch profile names for matches with partners
-      const dataWithProfiles = await Promise.all(
-        (data || []).map(async (saved: any) => {
-          if (saved.evaluation.combination_type === 'with_partner' && saved.evaluation.partner_profile_id) {
-            const { data: partnerProfile } = await supabase
-              .from("company_profiles")
-              .select("profile_name")
-              .eq("id", saved.evaluation.partner_profile_id)
-              .single();
-            
-            return {
-              ...saved,
-              evaluation: {
-                ...saved.evaluation,
-                partner_name: partnerProfile?.profile_name
-              }
-            };
-          }
-          return saved;
-        })
-      );
+      // Enrich with partner profile names using saved_tenders' own combination data
+      const enrichedData = await Promise.all((data || []).map(async (tender: any) => {
+        let partnerName = null;
+        // Use combination_type and partner_profile_id from saved_tenders directly
+        if (tender.combination_type === 'combination' && tender.partner_profile_id) {
+          const { data: partnerProfile } = await supabase
+            .from("company_profiles")
+            .select("profile_name")
+            .eq("id", tender.partner_profile_id)
+            .single();
+          partnerName = partnerProfile?.profile_name;
+        }
+        return { ...tender, partnerName };
+      }));
 
-      setSavedTenders(dataWithProfiles as any);
-
+      setSavedTenders(enrichedData);
     } catch (error) {
       console.error("Error loading saved tenders:", error);
       toast({
@@ -215,7 +203,6 @@ export const MatchesTab = () => {
               <TableHead className="w-[25%]">Tittel</TableHead>
               <TableHead>Oppdragsgiver</TableHead>
               <TableHead>Partner</TableHead>
-              <TableHead className="w-16">Score</TableHead>
               <TableHead>Relevans</TableHead>
               <TableHead>Tidskritisk</TableHead>
               <TableHead>Frist</TableHead>
@@ -225,7 +212,7 @@ export const MatchesTab = () => {
           <TableBody>
             {savedTenders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <Bookmark className="h-8 w-8 text-muted-foreground/50" />
                     <p className="font-medium">Ingen lagrede anbud</p>
@@ -253,16 +240,11 @@ export const MatchesTab = () => {
                     {saved.tender.client || "N/A"}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {saved.evaluation.combination_type === 'with_partner' ? (
-                      <Badge variant="secondary">{saved.evaluation.partner_name || "Partner"}</Badge>
+                    {saved.combination_type === 'combination' ? (
+                      <Badge variant="secondary">{saved.partnerName || "Partner"}</Badge>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="default">
-                      {saved.evaluation.total_score}
-                    </Badge>
                   </TableCell>
                   <TableCell>
                     {saved.relevance_score ? (

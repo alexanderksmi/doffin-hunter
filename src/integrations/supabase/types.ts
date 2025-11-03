@@ -276,13 +276,16 @@ export type Database = {
         Row: {
           activity_log: Json | null
           assigned_to: string | null
+          combination_type: string
           comments: string | null
           created_at: string | null
           current_stage: Database["public"]["Enums"]["tender_stage"] | null
           evaluation_id: string
           id: string
+          lead_profile_id: string | null
           notes: string | null
           organization_id: string
+          partner_profile_id: string | null
           relevance_score: number | null
           saved_by: string
           stage_notes: Json | null
@@ -294,13 +297,16 @@ export type Database = {
         Insert: {
           activity_log?: Json | null
           assigned_to?: string | null
+          combination_type?: string
           comments?: string | null
           created_at?: string | null
           current_stage?: Database["public"]["Enums"]["tender_stage"] | null
           evaluation_id: string
           id?: string
+          lead_profile_id?: string | null
           notes?: string | null
           organization_id: string
+          partner_profile_id?: string | null
           relevance_score?: number | null
           saved_by: string
           stage_notes?: Json | null
@@ -312,13 +318,16 @@ export type Database = {
         Update: {
           activity_log?: Json | null
           assigned_to?: string | null
+          combination_type?: string
           comments?: string | null
           created_at?: string | null
           current_stage?: Database["public"]["Enums"]["tender_stage"] | null
           evaluation_id?: string
           id?: string
+          lead_profile_id?: string | null
           notes?: string | null
           organization_id?: string
+          partner_profile_id?: string | null
           relevance_score?: number | null
           saved_by?: string
           stage_notes?: Json | null
@@ -336,10 +345,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "saved_tenders_lead_profile_fkey"
+            columns: ["lead_profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "saved_tenders_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_tenders_partner_profile_fkey"
+            columns: ["partner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
             referencedColumns: ["id"]
           },
           {
