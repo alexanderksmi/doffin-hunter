@@ -60,48 +60,65 @@ export const SavedTenderDialog = ({
       let leadMatched: any[] = [];
       let partnerMatched: any[] = [];
 
-      // Get keywords from lead profile
-      if (savedTender.lead_profile_id) {
-        const { data: leadKeywords } = await supabase
-          .from("minimum_requirements")
-          .select("keyword")
-          .eq("profile_id", savedTender.lead_profile_id);
-        
-        leadMatched = (savedTender.evaluation.met_minimum_requirements || [])
-          .filter((req: any) => 
-            leadKeywords?.some(k => k.keyword.toLowerCase() === req.keyword.toLowerCase())
-          )
-          .map((req: any) => ({ ...req, source: 'lead' }));
-        setLeadProfileKeywords(leadMatched);
-      }
-
-      // Get keywords from partner profile if it's a combination
-      if (savedTender.combination_type === 'combination' && 
-          savedTender.partner_profile_id) {
-        const { data: partnerKeywords } = await supabase
-          .from("minimum_requirements")
-          .select("keyword")
-          .eq("profile_id", savedTender.partner_profile_id);
-        
-        partnerMatched = (savedTender.evaluation.met_minimum_requirements || [])
-          .filter((req: any) => 
-            partnerKeywords?.some(k => k.keyword.toLowerCase() === req.keyword.toLowerCase())
-          )
-          .map((req: any) => ({ ...req, source: 'partner' }));
-        setPartnerProfileKeywords(partnerMatched);
-      } else {
-        setPartnerProfileKeywords([]);
-      }
-
-      // Calculate combined score for combinations
       if (savedTender.combination_type === 'combination') {
+        // For combinations, fetch both evaluations to get all met requirements
+        if (savedTender.lead_profile_id) {
+          const { data: leadEval } = await supabase
+            .from("tender_evaluations")
+            .select("met_minimum_requirements")
+            .eq("tender_id", savedTender.tender_id)
+            .eq("lead_profile_id", savedTender.lead_profile_id)
+            .maybeSingle();
+          
+          if (leadEval?.met_minimum_requirements) {
+            leadMatched = (leadEval.met_minimum_requirements as any[]).map((req: any) => ({ 
+              ...req, 
+              source: 'lead' 
+            }));
+            setLeadProfileKeywords(leadMatched);
+          }
+        }
+
+        if (savedTender.partner_profile_id) {
+          const { data: partnerEval } = await supabase
+            .from("tender_evaluations")
+            .select("met_minimum_requirements")
+            .eq("tender_id", savedTender.tender_id)
+            .eq("lead_profile_id", savedTender.partner_profile_id)
+            .maybeSingle();
+          
+          if (partnerEval?.met_minimum_requirements) {
+            partnerMatched = (partnerEval.met_minimum_requirements as any[]).map((req: any) => ({ 
+              ...req, 
+              source: 'partner' 
+            }));
+            setPartnerProfileKeywords(partnerMatched);
+          }
+        }
+
+        // Calculate combined score
         const allKeywords = [...leadMatched, ...partnerMatched];
         const uniqueKeywords = Array.from(
           new Map(allKeywords.map(req => [req.keyword.toLowerCase(), req])).values()
         );
         setCombinedScore(uniqueKeywords.length);
       } else {
+        // For solo, just use the evaluation data
+        if (savedTender.lead_profile_id) {
+          const { data: leadKeywords } = await supabase
+            .from("minimum_requirements")
+            .select("keyword")
+            .eq("profile_id", savedTender.lead_profile_id);
+          
+          leadMatched = (savedTender.evaluation.met_minimum_requirements || [])
+            .filter((req: any) => 
+              leadKeywords?.some(k => k.keyword.toLowerCase() === req.keyword.toLowerCase())
+            )
+            .map((req: any) => ({ ...req, source: 'lead' }));
+          setLeadProfileKeywords(leadMatched);
+        }
         setCombinedScore(savedTender.evaluation.total_score);
+        setPartnerProfileKeywords([]);
       }
     };
 

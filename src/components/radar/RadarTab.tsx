@@ -43,13 +43,26 @@ export const RadarTab = () => {
   const [combinations, setCombinations] = useState<any[]>([]);
   const [minScore, setMinScore] = useState<string>("1");
   const [viewFilter, setViewFilter] = useState<string>("published_desc");
+  const [savedTenderIds, setSavedTenderIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (organizationId) {
       fetchCombinations();
       checkAndSyncTenders();
+      loadSavedTenderIds();
     }
   }, [organizationId]);
+
+  const loadSavedTenderIds = async () => {
+    const { data } = await supabase
+      .from('saved_tenders')
+      .select('tender_id')
+      .eq('organization_id', organizationId);
+    
+    if (data) {
+      setSavedTenderIds(new Set(data.map(st => st.tender_id)));
+    }
+  };
 
   const checkAndSyncTenders = async () => {
     try {
@@ -567,6 +580,8 @@ export const RadarTab = () => {
           throw error;
         }
       } else {
+        // Update saved tender IDs
+        setSavedTenderIds(prev => new Set(prev).add(evaluation.tender_id));
         toast({
           title: "Lagret",
           description: "Anbudet er lagret i Matches",
@@ -733,7 +748,9 @@ export const RadarTab = () => {
                       onClick={() => handleSaveTender(evaluation)}
                       title="Lagre anbud"
                     >
-                      <Bookmark className="h-4 w-4" />
+                      <Bookmark 
+                        className={`h-4 w-4 ${savedTenderIds.has(evaluation.tender_id) ? 'fill-current' : ''}`}
+                      />
                     </Button>
                   </TableCell>
                 </TableRow>
