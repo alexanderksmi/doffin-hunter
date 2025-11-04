@@ -17,6 +17,7 @@ interface TenderEvaluation {
   combination_type: string;
   all_minimum_requirements_met: boolean;
   total_score: number;
+  support_score: number;
   explanation: string;
   met_minimum_requirements: any[];
   matched_support_keywords: any[];
@@ -903,7 +904,7 @@ export const RadarTab = () => {
                           : 'bg-blue-600'
                       }
                     >
-                      {evaluation.total_score}
+                      {evaluation.support_score}
                     </Badge>
                   </TableCell>
                   <TableCell>
