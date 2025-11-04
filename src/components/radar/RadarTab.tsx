@@ -894,13 +894,24 @@ export const RadarTab = () => {
                     <Badge 
                       variant="default" 
                       className={
-                        evaluation.combination_type === 'combination' && evaluation.partner_profile_id
-                          ? (() => {
-                              const partnerIdx = partnerIndexMap.get(evaluation.partner_profile_id!) ?? 0;
+                        (() => {
+                          // For combinations, use partner color
+                          if (evaluation.combination_type === 'combination' && evaluation.partner_profile_id) {
+                            const partnerIdx = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
+                            const colors = getPartnerColor(partnerIdx);
+                            return `${colors.bg} ${colors.text} border ${colors.border}`;
+                          }
+                          // For solo evaluations, check if it's a partner profile
+                          if (evaluation.combination_type === 'solo' && evaluation.lead_profile_id) {
+                            if (partnerIndexMap.has(evaluation.lead_profile_id)) {
+                              const partnerIdx = partnerIndexMap.get(evaluation.lead_profile_id) ?? 0;
                               const colors = getPartnerColor(partnerIdx);
                               return `${colors.bg} ${colors.text} border ${colors.border}`;
-                            })()
-                          : 'bg-blue-600'
+                            }
+                          }
+                          // Default to blue for own profile
+                          return 'bg-blue-600 text-white';
+                        })()
                       }
                     >
                       {(evaluation.matched_support_keywords as any[] || []).reduce((sum: number, kw: any) => sum + (kw.weight || 0), 0)}
@@ -911,7 +922,7 @@ export const RadarTab = () => {
                       {/* Show only support keywords (these give points) */}
                       {(evaluation.matched_support_keywords as any[] || []).map((kw: any, idx: number) => {
                         // Determine color based on source (lead/partner) or profile type
-                        let badgeClass = "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"; // Documaster default
+                        let badgeClass = "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"; // Default for own profile
                         
                         // For combinations, use source to determine color
                         if (evaluation.combination_type === 'combination') {
@@ -923,11 +934,13 @@ export const RadarTab = () => {
                             badgeClass = "bg-blue-600 hover:bg-blue-700 text-white border-blue-600";
                           }
                         }
-                        // For solo evaluations from partner profiles
-                        else if (evaluation.combination_type === 'solo' && evaluation.partner_profile_id) {
-                          const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
-                          const colors = getPartnerColor(partnerIndex);
-                          badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white border-transparent`;
+                        // For solo evaluations, check if it's a partner profile
+                        else if (evaluation.combination_type === 'solo' && evaluation.lead_profile_id) {
+                          if (partnerIndexMap.has(evaluation.lead_profile_id)) {
+                            const partnerIndex = partnerIndexMap.get(evaluation.lead_profile_id) ?? 0;
+                            const colors = getPartnerColor(partnerIndex);
+                            badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white border-transparent`;
+                          }
                         }
                         
                         return (
