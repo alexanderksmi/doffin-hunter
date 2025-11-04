@@ -924,25 +924,18 @@ export const RadarTab = () => {
                         // Determine color based on evaluation type and profile
                         let badgeClass = "bg-blue-600 hover:bg-blue-700 text-white"; // Default for own profile (Documaster)
                         
-                        // Debug logging
-                        if (idx === 0) {
-                          console.log('Evaluation:', {
-                            combination_type: evaluation.combination_type,
-                            lead_profile_id: evaluation.lead_profile_id,
-                            partner_profile_id: evaluation.partner_profile_id,
-                            isInPartnerMap: evaluation.lead_profile_id ? partnerIndexMap.has(evaluation.lead_profile_id) : false,
-                            partnerIndex: evaluation.lead_profile_id ? partnerIndexMap.get(evaluation.lead_profile_id) : null
-                          });
-                        }
-                        
                         // For combinations, use source to determine color
                         if (evaluation.combination_type === 'combination') {
+                          console.log(`Keyword "${kw.keyword}": source=${kw.source}, partner_profile_id=${evaluation.partner_profile_id}`);
+                          
                           if (kw.source === 'partner' && evaluation.partner_profile_id) {
                             const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
                             const colors = getPartnerColor(partnerIndex);
                             badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white`;
+                            console.log(`Applied partner color for "${kw.keyword}":`, badgeClass);
                           } else if (kw.source === 'lead') {
                             badgeClass = "bg-blue-600 hover:bg-blue-700 text-white";
+                            console.log(`Applied lead color for "${kw.keyword}"`);
                           }
                         }
                         // For solo evaluations, determine color by lead_profile_id
@@ -952,10 +945,6 @@ export const RadarTab = () => {
                             const partnerIndex = partnerIndexMap.get(evaluation.lead_profile_id) ?? 0;
                             const colors = getPartnerColor(partnerIndex);
                             badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white`;
-                            
-                            if (idx === 0) {
-                              console.log('Applied partner color:', colors, 'badgeClass:', badgeClass);
-                            }
                           }
                           // Otherwise it's own profile, use default blue
                         }
