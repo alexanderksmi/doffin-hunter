@@ -48,7 +48,7 @@ export const RadarTab = () => {
   const [selectedCombination, setSelectedCombination] = useState<string>("all");
   const [combinations, setCombinations] = useState<any[]>([]);
   const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
-  const [minScore, setMinScore] = useState<string>("1");
+  const [minScore, setMinScore] = useState<string>("3");
   const [viewFilter, setViewFilter] = useState<string>("score_desc");
   const [savedTenderIds, setSavedTenderIds] = useState<Set<string>>(new Set());
 
@@ -643,14 +643,19 @@ export const RadarTab = () => {
     }
   };
 
+  const calculateDisplayScore = (evaluation: any): number => {
+    const keywords = (evaluation.matched_support_keywords as any[] || []);
+    return keywords.reduce((sum, kw) => sum + (kw.weight || 0), 0);
+  };
+
   const applySorting = (evals: any[], sortType: string) => {
     const sorted = [...evals];
     
     switch (sortType) {
       case 'score_desc':
-        return sorted.sort((a, b) => b.total_score - a.total_score);
+        return sorted.sort((a, b) => calculateDisplayScore(b) - calculateDisplayScore(a));
       case 'score_asc':
-        return sorted.sort((a, b) => a.total_score - b.total_score);
+        return sorted.sort((a, b) => calculateDisplayScore(a) - calculateDisplayScore(b));
       case 'published_desc':
         return sorted.sort((a, b) => {
           const dateA = a.tender?.published_date ? new Date(a.tender.published_date).getTime() : 0;
@@ -676,7 +681,7 @@ export const RadarTab = () => {
           return dateA - dateB;
         });
       default:
-        return sorted.sort((a, b) => b.total_score - a.total_score);
+        return sorted.sort((a, b) => calculateDisplayScore(b) - calculateDisplayScore(a));
     }
   };
 
