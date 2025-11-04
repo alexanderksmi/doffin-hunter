@@ -841,7 +841,6 @@ export const RadarTab = () => {
               <TableHead>Filtrer</TableHead>
               <TableHead className="w-16">Score</TableHead>
               <TableHead>Søkeord</TableHead>
-              <TableHead>Forklaring</TableHead>
               <TableHead>Frist</TableHead>
               <TableHead>Publisert</TableHead>
               <TableHead className="w-12"></TableHead>
@@ -865,7 +864,7 @@ export const RadarTab = () => {
               ))
             ) : evaluations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   <p className="font-medium">Ingen anbud funnet med minst 1 oppfylt minimumskrav</p>
                 </TableCell>
               </TableRow>
@@ -941,9 +940,6 @@ export const RadarTab = () => {
                         );
                       })}
                     </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {evaluation.explanation}
                   </TableCell>
                   <TableCell className="text-sm">
                     {formatDate(evaluation.tender.deadline)}
