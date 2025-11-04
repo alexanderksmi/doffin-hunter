@@ -904,7 +904,7 @@ export const RadarTab = () => {
                           : 'bg-blue-600'
                       }
                     >
-                      {evaluation.support_score}
+                      {(evaluation.matched_support_keywords as any[] || []).reduce((sum: number, kw: any) => sum + (kw.weight || 0), 0)}
                     </Badge>
                   </TableCell>
                   <TableCell>
