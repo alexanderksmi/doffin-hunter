@@ -922,20 +922,17 @@ export const RadarTab = () => {
                       {/* Show only support keywords (these give points) */}
                       {(evaluation.matched_support_keywords as any[] || []).map((kw: any, idx: number) => {
                         // Determine color based on evaluation type and profile
-                        let badgeClass = "bg-blue-600 hover:bg-blue-700 text-white"; // Default for own profile (Documaster)
+                        // Use same logic as score badge for consistency
+                        let badgeClass = "bg-blue-600 text-white"; // Default for own profile (Documaster)
                         
                         // For combinations, use source to determine color
                         if (evaluation.combination_type === 'combination') {
-                          console.log(`Keyword "${kw.keyword}": source=${kw.source}, partner_profile_id=${evaluation.partner_profile_id}`);
-                          
                           if (kw.source === 'partner' && evaluation.partner_profile_id) {
                             const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
                             const colors = getPartnerColor(partnerIndex);
-                            badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white`;
-                            console.log(`Applied partner color for "${kw.keyword}":`, badgeClass);
+                            badgeClass = `${colors.bg} ${colors.text} border ${colors.border}`;
                           } else if (kw.source === 'lead') {
-                            badgeClass = "bg-blue-600 hover:bg-blue-700 text-white";
-                            console.log(`Applied lead color for "${kw.keyword}"`);
+                            badgeClass = "bg-blue-600 text-white";
                           }
                         }
                         // For solo evaluations, determine color by lead_profile_id
@@ -944,9 +941,8 @@ export const RadarTab = () => {
                           if (partnerIndexMap.has(evaluation.lead_profile_id)) {
                             const partnerIndex = partnerIndexMap.get(evaluation.lead_profile_id) ?? 0;
                             const colors = getPartnerColor(partnerIndex);
-                            badgeClass = `${colors.border.replace('border-', 'bg-')} hover:opacity-90 text-white`;
+                            badgeClass = `${colors.bg} ${colors.text} border ${colors.border}`;
                           }
-                          // Otherwise it's own profile, use default blue
                         }
                         
                         return (
