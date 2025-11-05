@@ -897,15 +897,18 @@ export type Database = {
       get_user_organization: { Args: { user_id: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
-      upsert_evaluation_results: {
+      upsert_evaluation_results_with_cleanup: {
         Args: {
           _combination_type: string
-          _lead_profile_id: string
+          _criteria_fingerprint: string
           _org_id: string
-          _partner_profile_id: string
+          _profile_id: string
           _results: Json
         }
-        Returns: undefined
+        Returns: {
+          pruned_count: number
+          upserted_count: number
+        }[]
       }
       user_can_edit: { Args: { _user_id: string }; Returns: boolean }
       user_has_role: {

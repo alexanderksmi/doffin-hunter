@@ -52,23 +52,25 @@ serve(async (req) => {
           timestamp: new Date().toISOString(),
         });
 
-        // Execute set-based evaluation
-        await processJob(supabase, job);
+        // Execute set-based evaluation with automatic cleanup
+        const stats = await processJob(supabase, job);
 
         // Mark job as completed
         await markJobCompleted(supabase, job.job_id);
 
-        // Broadcast evaluation_done event
+        // Broadcast evaluation_done event WITH STATISTICS
         await broadcastEvent(supabase, job.organization_id, {
           type: 'evaluation_done',
           job_id: job.job_id,
           organization_id: job.organization_id,
           affected_profile_ids: job.affected_profile_ids,
+          upserted_count: stats?.upserted || 0,
+          pruned_count: stats?.pruned || 0,
           timestamp: new Date().toISOString(),
         });
 
         processedJobs++;
-        console.log(`✅ Job ${job.job_id} completed successfully`);
+        console.log(`✅ Job ${job.job_id} completed (${stats?.upserted || 0} upserted, ${stats?.pruned || 0} pruned)`);
 
       } catch (error) {
         console.error(`❌ Job ${job.job_id} failed:`, error);
@@ -125,11 +127,11 @@ async function claimNextJob(supabase: any): Promise<Job | null> {
   };
 }
 
-// Process job: run set-based evaluation and upsert results
+// Process job: run set-based evaluation and upsert results with automatic cleanup
 async function processJob(supabase: any, job: Job) {
   console.log(`🔍 Evaluating tenders for ${job.affected_profile_ids.length} profiles`);
 
-  // Call set-based evaluation function
+  // Call set-based evaluation function (now includes criteria_fingerprint)
   const { data: evaluations, error: evalError } = await supabase.rpc(
     'evaluate_tenders_batch',
     {
@@ -144,46 +146,77 @@ async function processJob(supabase: any, job: Job) {
 
   console.log(`📊 Found ${evaluations?.length || 0} qualified tenders`);
 
-  if (!evaluations || evaluations.length === 0) {
-    return;
-  }
-
-  // Group evaluations by profile for batch upsert
-  const profileGroups = new Map<string, any[]>();
+  // Group evaluations by profile for batch upsert + cleanup
+  const profileGroups = new Map<string, { results: any[], fingerprint: string }>();
   
-  for (const eval_result of evaluations) {
+  for (const eval_result of evaluations || []) {
     const profileId = eval_result.profile_id;
+    const fingerprint = eval_result.criteria_fingerprint;
+    
     if (!profileGroups.has(profileId)) {
-      profileGroups.set(profileId, []);
+      profileGroups.set(profileId, { results: [], fingerprint });
     }
-    profileGroups.get(profileId)!.push(eval_result);
+    profileGroups.get(profileId)!.results.push(eval_result);
   }
 
-  // Batch upsert results per profile
-  for (const [profileId, results] of profileGroups) {
+  // Track statistics for realtime event
+  let totalUpserted = 0;
+  let totalPruned = 0;
+
+  // Batch upsert + cleanup results per profile in single transaction
+  for (const [profileId, { results, fingerprint }] of profileGroups) {
     const formattedResults = results.map(r => ({
       tender_id: r.tender_id,
       total_score: r.total_score,
       matched_keywords: r.matched_keywords,
     }));
 
-    const { error: upsertError } = await supabase.rpc(
-      'upsert_evaluation_results',
+    const { data: stats, error: upsertError } = await supabase.rpc(
+      'upsert_evaluation_results_with_cleanup',
       {
         _org_id: job.organization_id,
-        _lead_profile_id: profileId,
-        _partner_profile_id: null,
+        _profile_id: profileId,
         _combination_type: 'solo',
         _results: formattedResults,
+        _criteria_fingerprint: fingerprint,
       }
     );
 
     if (upsertError) {
-      throw new Error(`Upsert failed for profile ${profileId}: ${upsertError.message}`);
+      throw new Error(`Upsert+cleanup failed for profile ${profileId}: ${upsertError.message}`);
+    }
+
+    if (stats && stats.length > 0) {
+      totalUpserted += stats[0].upserted_count || 0;
+      totalPruned += stats[0].pruned_count || 0;
     }
   }
 
-  console.log(`💾 Upserted ${evaluations.length} evaluations`);
+  // Also cleanup profiles that now have ZERO matches (fingerprint changed, no new matches)
+  for (const profileId of job.affected_profile_ids) {
+    if (!profileGroups.has(profileId)) {
+      // This profile has no matches anymore - cleanup all its old evaluations
+      const { data: stats, error: cleanupError } = await supabase.rpc(
+        'upsert_evaluation_results_with_cleanup',
+        {
+          _org_id: job.organization_id,
+          _profile_id: profileId,
+          _combination_type: 'solo',
+          _results: [],  // Empty result set
+          _criteria_fingerprint: 'no-matches',  // Different fingerprint triggers cleanup
+        }
+      );
+
+      if (cleanupError) {
+        console.error(`Cleanup failed for profile ${profileId}:`, cleanupError);
+      } else if (stats && stats.length > 0) {
+        totalPruned += stats[0].pruned_count || 0;
+      }
+    }
+  }
+
+  console.log(`💾 Upserted ${totalUpserted}, pruned ${totalPruned} evaluations`);
+  return { upserted: totalUpserted, pruned: totalPruned };
 }
 
 // Mark job as completed
