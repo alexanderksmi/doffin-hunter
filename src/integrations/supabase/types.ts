@@ -535,8 +535,11 @@ export type Database = {
           combination_type: string
           cpv_score: number | null
           created_at: string | null
+          criteria_fingerprint: string | null
           explanation: string | null
           id: string
+          is_active: boolean
+          is_manual: boolean
           lead_profile_id: string | null
           matched_cpv_codes: Json | null
           matched_negative_keywords: Json | null
@@ -558,8 +561,11 @@ export type Database = {
           combination_type: string
           cpv_score?: number | null
           created_at?: string | null
+          criteria_fingerprint?: string | null
           explanation?: string | null
           id?: string
+          is_active?: boolean
+          is_manual?: boolean
           lead_profile_id?: string | null
           matched_cpv_codes?: Json | null
           matched_negative_keywords?: Json | null
@@ -581,8 +587,11 @@ export type Database = {
           combination_type?: string
           cpv_score?: number | null
           created_at?: string | null
+          criteria_fingerprint?: string | null
           explanation?: string | null
           id?: string
+          is_active?: boolean
+          is_manual?: boolean
           lead_profile_id?: string | null
           matched_cpv_codes?: Json | null
           matched_negative_keywords?: Json | null
