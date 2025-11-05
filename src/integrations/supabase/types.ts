@@ -121,6 +121,7 @@ export type Database = {
       evaluation_jobs: {
         Row: {
           affected_profile_ids: string[]
+          broadcast_payload: Json | null
           completed_at: string | null
           created_at: string
           dedupe_key: string
@@ -137,6 +138,7 @@ export type Database = {
         }
         Insert: {
           affected_profile_ids?: string[]
+          broadcast_payload?: Json | null
           completed_at?: string | null
           created_at?: string
           dedupe_key: string
@@ -153,6 +155,7 @@ export type Database = {
         }
         Update: {
           affected_profile_ids?: string[]
+          broadcast_payload?: Json | null
           completed_at?: string | null
           created_at?: string
           dedupe_key?: string

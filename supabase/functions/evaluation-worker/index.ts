@@ -43,30 +43,14 @@ serve(async (req) => {
       console.log(`📦 Processing job ${job.job_id} for org ${job.organization_id}`);
       
       try {
-        // Broadcast evaluation_started event
-        await broadcastEvent(supabase, job.organization_id, {
-          type: 'evaluation_started',
-          job_id: job.job_id,
-          organization_id: job.organization_id,
-          affected_profile_ids: job.affected_profile_ids,
-          timestamp: new Date().toISOString(),
-        });
-
         // Execute set-based evaluation with automatic cleanup
         const stats = await processJob(supabase, job);
 
-        // Mark job as completed
-        await markJobCompleted(supabase, job.job_id);
-
-        // Broadcast evaluation_done event WITH STATISTICS
-        await broadcastEvent(supabase, job.organization_id, {
-          type: 'evaluation_done',
-          job_id: job.job_id,
-          organization_id: job.organization_id,
-          affected_profile_ids: job.affected_profile_ids,
+        // Mark job as completed with payload
+        await markJobCompleted(supabase, job.job_id, {
           upserted_count: stats?.upserted || 0,
           pruned_count: stats?.pruned || 0,
-          timestamp: new Date().toISOString(),
+          profiles_processed: job.affected_profile_ids.length
         });
 
         processedJobs++;
@@ -219,14 +203,15 @@ async function processJob(supabase: any, job: Job) {
   return { upserted: totalUpserted, pruned: totalPruned };
 }
 
-// Mark job as completed
-async function markJobCompleted(supabase: any, jobId: string) {
+// Mark job as completed with optional payload
+async function markJobCompleted(supabase: any, jobId: string, payload?: any) {
   const { error } = await supabase
     .from('evaluation_jobs')
     .update({
       status: 'completed',
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      broadcast_payload: payload || null
     })
     .eq('id', jobId);
 
@@ -294,38 +279,6 @@ function getErrorCode(error: any): string {
   if (error?.message?.includes('RLS')) return 'RLS_DENIED';
   if (error?.message?.includes('timeout')) return 'TIMEOUT';
   return 'UNKNOWN_ERROR';
-}
-
-// Broadcast realtime event to organization channel
-async function broadcastEvent(supabase: any, orgId: string, payload: any) {
-  try {
-    const channel = supabase.channel(`eval:${orgId}`);
-    
-    // Must subscribe with callback and wait for SUBSCRIBED status
-    await new Promise<void>((resolve) => {
-      channel.subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') {
-          resolve();
-        }
-      });
-    });
-    
-    // Now send the broadcast
-    await channel.send({
-      type: 'broadcast',
-      event: payload.type,
-      payload,
-    });
-    
-    console.log(`📡 Broadcasted ${payload.type} to eval:${orgId}`);
-    
-    // Clean up after small delay to ensure message is sent
-    await new Promise(resolve => setTimeout(resolve, 100));
-    await supabase.removeChannel(channel);
-  } catch (error) {
-    console.error('Error broadcasting event:', error);
-    // Non-fatal: don't throw
-  }
 }
 
 // Sleep utility

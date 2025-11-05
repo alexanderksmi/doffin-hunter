@@ -52,8 +52,33 @@ export const RadarTab = () => {
   const [viewFilter, setViewFilter] = useState<string>("score_desc");
   const [savedTenderIds, setSavedTenderIds] = useState<Set<string>>(new Set());
 
+  // Catch-up: Check if there's a recently completed job
+  const checkPendingJobs = async () => {
+    if (!organizationId) return;
+    
+    try {
+      const { data: latestJob } = await supabase
+        .from('evaluation_jobs')
+        .select('id, status, updated_at, broadcast_payload')
+        .eq('organization_id', organizationId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (latestJob?.status === 'completed') {
+        console.log('Catch-up: Found completed job, refetching...');
+        await fetchEvaluations();
+      } else if (latestJob?.status === 'running') {
+        console.log('Catch-up: Job currently running...');
+      }
+    } catch (error) {
+      console.error('Error checking pending jobs:', error);
+    }
+  };
+
   useEffect(() => {
     if (organizationId) {
+      checkPendingJobs(); // Catch-up first
       fetchCombinations();
       checkAndSyncTenders();
       loadSavedTenderIds();
@@ -212,37 +237,67 @@ export const RadarTab = () => {
     };
   }, [organizationId, isSyncing]);
 
-  // Subscribe to evaluation worker broadcast events
+  // Subscribe to postgres_changes on evaluation_jobs (state-driven)
   useEffect(() => {
     if (!organizationId) return;
 
-    const broadcastChannel = supabase
-      .channel(`eval:${organizationId}`)
-      .on('broadcast', { event: 'evaluation_started' }, (payload) => {
-        console.log('Evaluation started:', payload);
-        toast({
-          title: "Evaluering startet",
-          description: "Behandler nye anbud...",
-        });
-      })
-      .on('broadcast', { event: 'evaluation_done' }, (payload: any) => {
-        console.log('Evaluation completed:', payload);
-        const stats = payload.payload || {};
-        const upserted = stats.upserted_count || 0;
-        const pruned = stats.pruned_count || 0;
+    const channel = supabase
+      .channel('evaluation_jobs_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'evaluation_jobs',
+          filter: `organization_id=eq.${organizationId}`
+        },
+        async (payload: any) => {
+          const newStatus = payload.new?.status;
+          const oldStatus = payload.old?.status;
+          
+          console.log('Job status changed:', oldStatus, '->', newStatus);
+          
+          if (newStatus === 'running' && oldStatus === 'pending') {
+            toast({
+              title: "Evaluering startet",
+              description: "Behandler nye anbud...",
+            });
+          }
+          
+          if (newStatus === 'completed') {
+            const stats = payload.new?.broadcast_payload || {};
+            toast({
+              title: "Evaluering fullført",
+              description: `${stats.upserted_count || 0} oppdatert, ${stats.pruned_count || 0} fjernet`,
+            });
+            await fetchEvaluations();
+          }
+        }
+      )
+      .subscribe(async (status: string) => {
+        console.log('Evaluation jobs channel status:', status);
         
-        toast({
-          title: "Evaluering fullført",
-          description: `${upserted} oppdatert, ${pruned} fjernet`,
-        });
-        // Refetch evaluations when worker completes
-        fetchEvaluations();
-      })
-      .subscribe();
+        // Catch-up on reconnect
+        if (status === 'SUBSCRIBED' || status === 'CHANNEL_ERROR') {
+          await checkPendingJobs();
+        }
+      });
 
     return () => {
-      supabase.removeChannel(broadcastChannel);
+      supabase.removeChannel(channel);
     };
+  }, [organizationId]);
+
+  // Fallback polling every 60 seconds
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const pollInterval = setInterval(async () => {
+      console.log('Fallback poll: Checking for completed jobs...');
+      await checkPendingJobs();
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(pollInterval);
   }, [organizationId]);
 
   const fetchCombinations = async () => {
