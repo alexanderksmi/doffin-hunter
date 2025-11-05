@@ -301,9 +301,16 @@ async function broadcastEvent(supabase: any, orgId: string, payload: any) {
   try {
     const channel = supabase.channel(`eval:${orgId}`);
     
-    // Subscribe first, then send
-    await channel.subscribe();
+    // Must subscribe with callback and wait for SUBSCRIBED status
+    await new Promise<void>((resolve) => {
+      channel.subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          resolve();
+        }
+      });
+    });
     
+    // Now send the broadcast
     await channel.send({
       type: 'broadcast',
       event: payload.type,
@@ -312,7 +319,8 @@ async function broadcastEvent(supabase: any, orgId: string, payload: any) {
     
     console.log(`📡 Broadcasted ${payload.type} to eval:${orgId}`);
     
-    // Clean up
+    // Clean up after small delay to ensure message is sent
+    await new Promise(resolve => setTimeout(resolve, 100));
     await supabase.removeChannel(channel);
   } catch (error) {
     console.error('Error broadcasting event:', error);
