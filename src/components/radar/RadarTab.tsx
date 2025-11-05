@@ -151,78 +151,31 @@ export const RadarTab = () => {
 
   const manualSyncTenders = async () => {
     try {
-      setIsSyncing(true);
       setLoading(true);
 
       toast({
-        title: "Synkroniserer anbud",
-        description: "Henter nye anbud fra Doffin...",
+        title: "Oppdaterer visning",
+        description: "Henter siste data...",
       });
 
-      // Trigger fetch tenders
-      await supabase.functions.invoke('fetch-doffin-tenders', {
-        body: { organizationId }
-      });
+      // Just refresh the view
+      await fetchEvaluations();
+      await loadSavedTenderIds();
 
-      // Wait a bit for sync log to be created, then get latest sync log to poll
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const { data: latestSync } = await supabase
-        .from('tender_sync_log')
-        .select('id, saved_count')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      // Poll sync status if we have a sync log id
-      let savedCount = 0;
-      if (latestSync?.id) {
-        const status = await pollSyncStatus(latestSync.id);
-        console.log('Fetch completed with status:', status);
-        
-        // Get the final saved count
-        const { data: finalSync } = await supabase
-          .from('tender_sync_log')
-          .select('saved_count')
-          .eq('id', latestSync.id)
-          .single();
-        
-        savedCount = finalSync?.saved_count || 0;
-      }
-
-      // Always trigger full re-evaluation to ensure correct scoring
       toast({
-        title: "Evaluerer anbud",
-        description: "Re-evaluerer alle anbud med oppdatert logikk...",
+        title: "Visning oppdatert",
+        description: "Siste data hentet",
       });
 
-      await supabase.functions.invoke('evaluate-tenders', {
-        body: { mode: 'full' }
-      });
-      
-      if (savedCount > 0) {
-        toast({
-          title: "Synkronisering fullført",
-          description: `${savedCount} nye anbud hentet og alle anbud re-evaluert`,
-        });
-      } else {
-        toast({
-          title: "Synkronisering fullført",
-          description: "Alle anbud re-evaluert med oppdatert logikk",
-        });
-      }
-
-      setIsSyncing(false);
-      fetchEvaluations();
+      setLoading(false);
     } catch (error) {
-      console.error('Error manually syncing tenders:', error);
+      console.error('Error refreshing view:', error);
       toast({
-        title: "Feil ved synkronisering",
-        description: "Kunne ikke synkronisere anbud",
+        title: "Feil ved oppdatering",
+        description: "Kunne ikke oppdatere visning",
         variant: "destructive",
       });
-      setIsSyncing(false);
-      fetchEvaluations();
+      setLoading(false);
     }
   };
 
@@ -868,12 +821,12 @@ export const RadarTab = () => {
 
         <Button 
           onClick={manualSyncTenders} 
-          disabled={isSyncing || loading}
+          disabled={loading}
           variant="outline"
           className="gap-2"
         >
-          <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-          {isSyncing ? "Synkroniserer..." : "Sync anbud"}
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? "Oppdaterer..." : "Oppdater"}
         </Button>
 
         <div className="ml-auto text-sm text-muted-foreground">
