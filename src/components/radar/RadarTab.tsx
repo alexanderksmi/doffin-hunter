@@ -474,7 +474,8 @@ export const RadarTab = () => {
       const allEvalsWithCombos = Array.from(tenderMap.values());
 
       const filtered = allEvalsWithCombos.filter((evaluation: any) => {
-        if (evaluation.total_score < scoreThreshold) return false;
+        const displayScore = calculateDisplayScore(evaluation);
+        if (displayScore < scoreThreshold) return false;
         return true;
       });
 
@@ -521,7 +522,9 @@ export const RadarTab = () => {
       }
 
       const filtered = (evals || []).filter((evaluation: any) => {
-        if (evaluation.total_score < scoreThreshold) return false;
+        if (!evaluation) return false;
+        const displayScore = calculateDisplayScore(evaluation);
+        if (displayScore < scoreThreshold) return false;
         return true;
       });
 
@@ -632,7 +635,9 @@ export const RadarTab = () => {
       }).filter(Boolean);
 
       const filtered = combinedEvals.filter((evaluation: any) => {
-        if (!evaluation || evaluation.total_score < scoreThreshold) return false;
+        if (!evaluation) return false;
+        const displayScore = calculateDisplayScore(evaluation);
+        if (displayScore < scoreThreshold) return false;
         return true;
       });
 
@@ -643,6 +648,7 @@ export const RadarTab = () => {
     }
   };
 
+  // Helper function to calculate the actual display score (sum of support keyword weights)
   const calculateDisplayScore = (evaluation: any): number => {
     const keywords = (evaluation.matched_support_keywords as any[] || []);
     return keywords.reduce((sum, kw) => sum + (kw.weight || 0), 0);
