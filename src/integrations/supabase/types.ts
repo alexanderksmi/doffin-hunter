@@ -94,6 +94,57 @@ export type Database = {
           },
         ]
       }
+      evaluation_jobs: {
+        Row: {
+          affected_profile_ids: string[]
+          completed_at: string | null
+          created_at: string
+          dedupe_key: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          max_retries: number
+          organization_id: string
+          retry_count: number
+          run_not_before: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          affected_profile_ids?: string[]
+          completed_at?: string | null
+          created_at?: string
+          dedupe_key: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          max_retries?: number
+          organization_id: string
+          retry_count?: number
+          run_not_before?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          affected_profile_ids?: string[]
+          completed_at?: string | null
+          created_at?: string
+          dedupe_key?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          max_retries?: number
+          organization_id?: string
+          retry_count?: number
+          run_not_before?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       minimum_requirements: {
         Row: {
           created_at: string | null
