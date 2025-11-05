@@ -518,6 +518,10 @@ export const RadarTab = () => {
       const allEvalsWithCombos = Array.from(tenderMap.values());
 
       const filtered = allEvalsWithCombos.filter((evaluation: any) => {
+        // Always include if minimum requirements are met
+        if (evaluation.all_minimum_requirements_met) return true;
+        
+        // Otherwise check score threshold
         const displayScore = calculateDisplayScore(evaluation);
         if (displayScore < scoreThreshold) return false;
         return true;
@@ -557,7 +561,6 @@ export const RadarTab = () => {
         .eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.profileId)
         .eq('is_active', true)
-        .eq('all_minimum_requirements_met', true)
         .order('total_score', { ascending: false });
 
       if (error) {
@@ -568,6 +571,11 @@ export const RadarTab = () => {
 
       const filtered = (evals || []).filter((evaluation: any) => {
         if (!evaluation) return false;
+        
+        // Always include if minimum requirements are met
+        if (evaluation.all_minimum_requirements_met) return true;
+        
+        // Otherwise check score threshold
         const displayScore = calculateDisplayScore(evaluation);
         if (displayScore < scoreThreshold) return false;
         return true;
@@ -599,8 +607,7 @@ export const RadarTab = () => {
         `)
         .eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.ownProfileId)
-        .eq('is_active', true)
-        .eq('all_minimum_requirements_met', true);
+        .eq('is_active', true);
 
       const { data: partnerEvals, error: partnerError } = await supabase
         .from('tender_evaluations')
@@ -619,8 +626,7 @@ export const RadarTab = () => {
         `)
         .eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.partnerProfileId)
-        .eq('is_active', true)
-        .eq('all_minimum_requirements_met', true);
+        .eq('is_active', true);
 
       if (ownError || partnerError) {
         console.error('Error fetching combination evaluations');
@@ -683,6 +689,11 @@ export const RadarTab = () => {
 
       const filtered = combinedEvals.filter((evaluation: any) => {
         if (!evaluation) return false;
+        
+        // Always include if minimum requirements are met
+        if (evaluation.all_minimum_requirements_met) return true;
+        
+        // Otherwise check score threshold
         const displayScore = calculateDisplayScore(evaluation);
         if (displayScore < scoreThreshold) return false;
         return true;
