@@ -51,6 +51,7 @@ export const RadarTab = () => {
   const [minScore, setMinScore] = useState<string>("3");
   const [viewFilter, setViewFilter] = useState<string>("score_desc");
   const [savedTenderIds, setSavedTenderIds] = useState<Set<string>>(new Set());
+  const [showOnlyMinReq, setShowOnlyMinReq] = useState<boolean>(false);
 
   // Catch-up: Check if there's a recently completed job
   const checkPendingJobs = async () => {
@@ -518,6 +519,11 @@ export const RadarTab = () => {
       const allEvalsWithCombos = Array.from(tenderMap.values());
 
       const filtered = allEvalsWithCombos.filter((evaluation: any) => {
+        // If showing only minimum requirement matches, filter for those
+        if (showOnlyMinReq) {
+          return evaluation.all_minimum_requirements_met && calculateDisplayScore(evaluation) === 0;
+        }
+        
         // Always include if minimum requirements are met
         if (evaluation.all_minimum_requirements_met) return true;
         
@@ -571,6 +577,11 @@ export const RadarTab = () => {
 
       const filtered = (evals || []).filter((evaluation: any) => {
         if (!evaluation) return false;
+        
+        // If showing only minimum requirement matches, filter for those
+        if (showOnlyMinReq) {
+          return evaluation.all_minimum_requirements_met && calculateDisplayScore(evaluation) === 0;
+        }
         
         // Always include if minimum requirements are met
         if (evaluation.all_minimum_requirements_met) return true;
@@ -689,6 +700,11 @@ export const RadarTab = () => {
 
       const filtered = combinedEvals.filter((evaluation: any) => {
         if (!evaluation) return false;
+        
+        // If showing only minimum requirement matches, filter for those
+        if (showOnlyMinReq) {
+          return evaluation.all_minimum_requirements_met && calculateDisplayScore(evaluation) === 0;
+        }
         
         // Always include if minimum requirements are met
         if (evaluation.all_minimum_requirements_met) return true;
@@ -854,11 +870,16 @@ export const RadarTab = () => {
 
         <div className="flex items-center gap-2">
           <Label>Min poeng:</Label>
-          <Select value={minScore} onValueChange={setMinScore}>
+          <Select 
+            value={minScore} 
+            onValueChange={setMinScore}
+            disabled={showOnlyMinReq}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="0">0+</SelectItem>
               <SelectItem value="1">1+</SelectItem>
               <SelectItem value="2">2+</SelectItem>
               <SelectItem value="3">3+</SelectItem>
@@ -866,6 +887,18 @@ export const RadarTab = () => {
               <SelectItem value="5">5+</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showOnlyMinReq}
+              onChange={(e) => setShowOnlyMinReq(e.target.checked)}
+              className="h-4 w-4 rounded border-input"
+            />
+            Kun min.krav (0 poeng)
+          </Label>
         </div>
 
         <div className="flex items-center gap-2">
