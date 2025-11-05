@@ -58,6 +58,8 @@ const Onboarding = () => {
   const [allProfiles, setAllProfiles] = useState<ProfileWithSuggestions[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState<string | null>(null);
+  const [joinedExistingOrg, setJoinedExistingOrg] = useState(false);
+  const [existingOrgName, setExistingOrgName] = useState<string>("");
 
   const addPartner = () => {
     if (newPartnerName && newPartnerDomain) {
@@ -93,13 +95,37 @@ const Onboarding = () => {
         // First check if user already has an org (from a previous incomplete onboarding)
         const { data: existingRole } = await supabase
           .from("user_roles")
-          .select("organization_id")
+          .select("organization_id, organizations(name)")
           .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
           .maybeSingle();
 
         if (existingRole?.organization_id) {
           orgId = existingRole.organization_id;
           setOrganizationId(existingRole.organization_id);
+          
+          // Check if this org already has profiles set up
+          const { data: existingProfiles } = await supabase
+            .from("company_profiles")
+            .select("id")
+            .eq("organization_id", existingRole.organization_id)
+            .limit(1);
+
+          // If organization has profiles, user joined an existing org
+          if (existingProfiles && existingProfiles.length > 0) {
+            setJoinedExistingOrg(true);
+            setExistingOrgName((existingRole as any).organizations?.name || "organisasjonen");
+            
+            toast({
+              title: "Velkommen!",
+              description: `Du er nå koblet til ${(existingRole as any).organizations?.name || "organisasjonen"}`,
+            });
+            
+            // Navigate to dashboard after a short delay
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 2000);
+            return;
+          }
         } else {
           const { data: newOrgId, error: rpcError } = await supabase.rpc(
             "create_org_for_user",
@@ -116,6 +142,29 @@ const Onboarding = () => {
 
           orgId = newOrgId;
           setOrganizationId(newOrgId);
+          
+          // Check if we joined an existing org (viewer role)
+          const { data: userRole } = await supabase
+            .from("user_roles")
+            .select("role, organizations(name)")
+            .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+            .eq("organization_id", newOrgId)
+            .single();
+
+          if (userRole?.role === "viewer") {
+            setJoinedExistingOrg(true);
+            setExistingOrgName((userRole as any).organizations?.name || "organisasjonen");
+            
+            toast({
+              title: "Velkommen!",
+              description: `Du er nå koblet til ${(userRole as any).organizations?.name || "organisasjonen"}`,
+            });
+            
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 2000);
+            return;
+          }
         }
       }
 
@@ -399,6 +448,29 @@ const Onboarding = () => {
       setLoading(false);
     }
   };
+
+  if (joinedExistingOrg) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <CardTitle>Velkommen til {existingOrgName}!</CardTitle>
+            <CardDescription>
+              Du er nå koblet til ditt selskaps miljø
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="py-8">
+            <div className="flex justify-center mb-4">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+            <p className="text-muted-foreground">
+              Tar deg til dashboardet...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">

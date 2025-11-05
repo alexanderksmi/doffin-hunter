@@ -10,7 +10,9 @@ import { Loader2, Plus, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Database } from "@/integrations/supabase/types";
+import { OrganizationMembers } from "@/components/settings/OrganizationMembers";
 
 type Profile = {
   id: string;
@@ -28,8 +30,9 @@ type Keyword = {
 };
 
 export const SearchSettingsPage = () => {
-  const { organizationId } = useAuth();
+  const { organizationId, userRole } = useAuth();
   const { toast } = useToast();
+  const canEdit = userRole === "admin" || userRole === "editor";
   const [loading, setLoading] = useState(true);
   const [ownProfile, setOwnProfile] = useState<Profile | null>(null);
   const [partnerProfiles, setPartnerProfiles] = useState<Profile[]>([]);
@@ -282,140 +285,217 @@ export const SearchSettingsPage = () => {
     if (!selectedProfile) return null;
 
     return (
-      <Tabs defaultValue="minimum" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="minimum">Minimumskrav</TabsTrigger>
-          <TabsTrigger value="support">Støtteord</TabsTrigger>
-          <TabsTrigger value="negative">Negativord</TabsTrigger>
-          <TabsTrigger value="cpv">CPV-koder</TabsTrigger>
-        </TabsList>
+      <TooltipProvider>
+        <Tabs defaultValue="minimum" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="minimum">Minimumskrav</TabsTrigger>
+            <TabsTrigger value="support">Støtteord</TabsTrigger>
+            <TabsTrigger value="negative">Negativord</TabsTrigger>
+            <TabsTrigger value="cpv">CPV-koder</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="minimum" className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nytt minimumskrav"
-              value={newKeyword}
-              onChange={(e) => setNewKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addKeyword("minimum")}
-            />
-            <Button onClick={() => addKeyword("minimum")} size="icon">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {minimumReqs.map((req) => (
-              <Badge key={req.id} variant="secondary">
-                {req.keyword}
-                <button
-                  onClick={() => deleteKeyword(req.id, "minimum")}
-                  className="ml-2 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </TabsContent>
+          <TabsContent value="minimum" className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nytt minimumskrav"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && canEdit && addKeyword("minimum")}
+                disabled={!canEdit}
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button 
+                      onClick={() => addKeyword("minimum")} 
+                      size="icon"
+                      disabled={!canEdit}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!canEdit && (
+                  <TooltipContent>
+                    <p>Spør administrator om tilgang til å endre</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {minimumReqs.map((req) => (
+                <Badge key={req.id} variant="secondary">
+                  {req.keyword}
+                  {canEdit && (
+                    <button
+                      onClick={() => deleteKeyword(req.id, "minimum")}
+                      className="ml-2 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </Badge>
+              ))}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="support" className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nytt støtteord"
-              value={newKeyword}
-              onChange={(e) => setNewKeyword(e.target.value)}
-            />
-            <Input
-              type="number"
-              placeholder="Vekt"
-              value={newWeight}
-              onChange={(e) => setNewWeight(Number(e.target.value))}
-              className="w-20"
-            />
-            <Button onClick={() => addKeyword("support")} size="icon">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {supportKeywords.map((kw) => (
-              <Badge key={kw.id} variant="default">
-                {kw.keyword} ({kw.weight})
-                <button
-                  onClick={() => deleteKeyword(kw.id, "support")}
-                  className="ml-2 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </TabsContent>
+          <TabsContent value="support" className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nytt støtteord"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                disabled={!canEdit}
+              />
+              <Input
+                type="number"
+                placeholder="Vekt"
+                value={newWeight}
+                onChange={(e) => setNewWeight(Number(e.target.value))}
+                className="w-20"
+                disabled={!canEdit}
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button 
+                      onClick={() => addKeyword("support")} 
+                      size="icon"
+                      disabled={!canEdit}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!canEdit && (
+                  <TooltipContent>
+                    <p>Spør administrator om tilgang til å endre</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {supportKeywords.map((kw) => (
+                <Badge key={kw.id} variant="default">
+                  {kw.keyword} ({kw.weight})
+                  {canEdit && (
+                    <button
+                      onClick={() => deleteKeyword(kw.id, "support")}
+                      className="ml-2 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </Badge>
+              ))}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="negative" className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nytt negativord"
-              value={newKeyword}
-              onChange={(e) => setNewKeyword(e.target.value)}
-            />
-            <Input
-              type="number"
-              placeholder="Vekt"
-              value={newWeight}
-              onChange={(e) => setNewWeight(Number(e.target.value))}
-              className="w-20"
-            />
-            <Button onClick={() => addKeyword("negative")} size="icon">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {negativeKeywords.map((kw) => (
-              <Badge key={kw.id} variant="destructive">
-                {kw.keyword} ({kw.weight})
-                <button
-                  onClick={() => deleteKeyword(kw.id, "negative")}
-                  className="ml-2 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </TabsContent>
+          <TabsContent value="negative" className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nytt negativord"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                disabled={!canEdit}
+              />
+              <Input
+                type="number"
+                placeholder="Vekt"
+                value={newWeight}
+                onChange={(e) => setNewWeight(Number(e.target.value))}
+                className="w-20"
+                disabled={!canEdit}
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button 
+                      onClick={() => addKeyword("negative")} 
+                      size="icon"
+                      disabled={!canEdit}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!canEdit && (
+                  <TooltipContent>
+                    <p>Spør administrator om tilgang til å endre</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {negativeKeywords.map((kw) => (
+                <Badge key={kw.id} variant="destructive">
+                  {kw.keyword} ({kw.weight})
+                  {canEdit && (
+                    <button
+                      onClick={() => deleteKeyword(kw.id, "negative")}
+                      className="ml-2 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </Badge>
+              ))}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="cpv" className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Ny CPV-kode"
-              value={newKeyword}
-              onChange={(e) => setNewKeyword(e.target.value)}
-            />
-            <Input
-              type="number"
-              placeholder="Vekt"
-              value={newWeight}
-              onChange={(e) => setNewWeight(Number(e.target.value))}
-              className="w-20"
-            />
-            <Button onClick={() => addKeyword("cpv")} size="icon">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {cpvCodes.map((cpv) => (
-              <Badge key={cpv.id} variant="outline">
-                {cpv.cpv_code || cpv.keyword} ({cpv.weight})
-                <button
-                  onClick={() => deleteKeyword(cpv.id, "cpv")}
-                  className="ml-2 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="cpv" className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Ny CPV-kode"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                disabled={!canEdit}
+              />
+              <Input
+                type="number"
+                placeholder="Vekt"
+                value={newWeight}
+                onChange={(e) => setNewWeight(Number(e.target.value))}
+                className="w-20"
+                disabled={!canEdit}
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button 
+                      onClick={() => addKeyword("cpv")} 
+                      size="icon"
+                      disabled={!canEdit}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!canEdit && (
+                  <TooltipContent>
+                    <p>Spør administrator om tilgang til å endre</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {cpvCodes.map((cpv) => (
+                <Badge key={cpv.id} variant="outline">
+                  {cpv.cpv_code || cpv.keyword} ({cpv.weight})
+                  {canEdit && (
+                    <button
+                      onClick={() => deleteKeyword(cpv.id, "cpv")}
+                      className="ml-2 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </Badge>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </TooltipProvider>
     );
   };
 
@@ -436,8 +516,8 @@ export const SearchSettingsPage = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Eget selskap</CardTitle>
             <CardDescription>Dine nøkkelord og innstillinger</CardDescription>
@@ -463,17 +543,32 @@ export const SearchSettingsPage = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Partnere</CardTitle>
                 <CardDescription>Partnerenes nøkkelord og innstillinger</CardDescription>
               </div>
-              <Button onClick={() => setAddPartnerOpen(true)} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Legg til partner
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button 
+                      onClick={() => setAddPartnerOpen(true)} 
+                      size="sm"
+                      disabled={!canEdit}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Legg til partner
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!canEdit && (
+                  <TooltipContent>
+                    <p>Spør administrator om tilgang til å endre</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           </CardHeader>
           <CardContent>
@@ -509,6 +604,10 @@ export const SearchSettingsPage = () => {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-6">
+        <OrganizationMembers />
       </div>
 
       <Dialog open={addPartnerOpen} onOpenChange={setAddPartnerOpen}>
