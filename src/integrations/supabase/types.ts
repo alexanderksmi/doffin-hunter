@@ -886,6 +886,7 @@ export type Database = {
         Args: { _org_id: string; _profile_ids: string[] }
         Returns: {
           all_minimum_met: boolean
+          criteria_fingerprint: string
           matched_keywords: Json
           profile_id: string
           tender_id: string
