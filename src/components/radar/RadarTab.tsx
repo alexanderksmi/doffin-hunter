@@ -557,7 +557,7 @@ export const RadarTab = () => {
         .eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.profileId)
         .eq('is_active', true)
-        .gte('total_score', 1)
+        .eq('all_minimum_requirements_met', true)
         .order('total_score', { ascending: false });
 
       if (error) {
@@ -600,7 +600,7 @@ export const RadarTab = () => {
         .eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.ownProfileId)
         .eq('is_active', true)
-        .gte('total_score', 1);
+        .eq('all_minimum_requirements_met', true);
 
       const { data: partnerEvals, error: partnerError } = await supabase
         .from('tender_evaluations')
@@ -620,7 +620,7 @@ export const RadarTab = () => {
         .eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.partnerProfileId)
         .eq('is_active', true)
-        .gte('total_score', 1);
+        .eq('all_minimum_requirements_met', true);
 
       if (ownError || partnerError) {
         console.error('Error fetching combination evaluations');
