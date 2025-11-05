@@ -259,6 +259,35 @@ export const RadarTab = () => {
     };
   }, [organizationId, isSyncing]);
 
+  // Subscribe to evaluation worker broadcast events
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const broadcastChannel = supabase
+      .channel(`eval:${organizationId}`)
+      .on('broadcast', { event: 'evaluation_started' }, (payload) => {
+        console.log('Evaluation started:', payload);
+        toast({
+          title: "Evaluering startet",
+          description: "Behandler nye anbud...",
+        });
+      })
+      .on('broadcast', { event: 'evaluation_done' }, (payload) => {
+        console.log('Evaluation completed:', payload);
+        toast({
+          title: "Evaluering fullført",
+          description: "Nye anbud er evaluert",
+        });
+        // Refetch evaluations when worker completes
+        fetchEvaluations();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(broadcastChannel);
+    };
+  }, [organizationId]);
+
   const fetchCombinations = async () => {
     const { data: profiles } = await supabase
       .from('company_profiles')
