@@ -153,6 +153,7 @@ async function processJob(supabase: any, job: Job) {
       tender_id: r.tender_id,
       total_score: r.total_score,
       matched_keywords: r.matched_keywords,
+      met_minimum_requirements: r.matched_keywords?.minimum || [],
     }));
 
     const { data: stats, error: upsertError } = await supabase.rpc(
