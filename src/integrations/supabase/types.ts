@@ -94,6 +94,30 @@ export type Database = {
           },
         ]
       }
+      cpv_hierarchy: {
+        Row: {
+          cpv_code: string
+          created_at: string
+          description: string | null
+          level: number
+          parent_code: string | null
+        }
+        Insert: {
+          cpv_code: string
+          created_at?: string
+          description?: string | null
+          level: number
+          parent_code?: string | null
+        }
+        Update: {
+          cpv_code?: string
+          created_at?: string
+          description?: string | null
+          level?: number
+          parent_code?: string | null
+        }
+        Relationships: []
+      }
       evaluation_jobs: {
         Row: {
           affected_profile_ids: string[]
@@ -833,13 +857,47 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_next_evaluation_job: {
+        Args: never
+        Returns: {
+          affected_profile_ids: string[]
+          job_id: string
+          organization_id: string
+        }[]
+      }
+      cpv_match_weight: {
+        Args: { profile_code: string; tender_code: string }
+        Returns: number
+      }
       create_org_for_user: {
         Args: { org_domain: string; org_name: string }
         Returns: string
       }
+      evaluate_tenders_batch: {
+        Args: { _org_id: string; _profile_ids: string[] }
+        Returns: {
+          all_minimum_met: boolean
+          evaluation_id: string
+          matched_keywords: Json
+          profile_id: string
+          tender_id: string
+          total_score: number
+        }[]
+      }
+      get_cpv_with_parents: { Args: { code: string }; Returns: string[] }
       get_user_organization: { Args: { user_id: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      upsert_evaluation_results: {
+        Args: {
+          _combination_type: string
+          _lead_profile_id: string
+          _org_id: string
+          _partner_profile_id: string
+          _results: Json
+        }
+        Returns: undefined
+      }
       user_can_edit: { Args: { _user_id: string }; Returns: boolean }
       user_has_role: {
         Args: {
