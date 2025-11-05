@@ -300,12 +300,20 @@ function getErrorCode(error: any): string {
 async function broadcastEvent(supabase: any, orgId: string, payload: any) {
   try {
     const channel = supabase.channel(`eval:${orgId}`);
+    
+    // Subscribe first, then send
+    await channel.subscribe();
+    
     await channel.send({
       type: 'broadcast',
       event: payload.type,
       payload,
     });
+    
     console.log(`📡 Broadcasted ${payload.type} to eval:${orgId}`);
+    
+    // Clean up
+    await supabase.removeChannel(channel);
   } catch (error) {
     console.error('Error broadcasting event:', error);
     // Non-fatal: don't throw
