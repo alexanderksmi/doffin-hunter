@@ -898,7 +898,8 @@ export const RadarTab = () => {
               <TableHead>Oppdragsgiver</TableHead>
               <TableHead>Filtrer</TableHead>
               <TableHead className="w-16">Score</TableHead>
-              <TableHead>Søkeord</TableHead>
+              <TableHead>Min. krav</TableHead>
+              <TableHead>Støtteord</TableHead>
               <TableHead>Frist</TableHead>
               <TableHead>Publisert</TableHead>
               <TableHead className="w-12"></TableHead>
@@ -914,6 +915,7 @@ export const RadarTab = () => {
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-8" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
@@ -922,7 +924,7 @@ export const RadarTab = () => {
               ))
             ) : evaluations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   <p className="font-medium">Ingen anbud funnet med minst 1 oppfylt minimumskrav</p>
                 </TableCell>
               </TableRow>
@@ -974,6 +976,47 @@ export const RadarTab = () => {
                     >
                       {(evaluation.matched_support_keywords as any[] || []).reduce((sum: number, kw: any) => sum + (kw.weight || 0), 0)}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {/* Show matched minimum requirements (no points) */}
+                      {(evaluation.met_minimum_requirements as any[] || []).length > 0 ? (
+                        (evaluation.met_minimum_requirements as any[] || []).map((req: any, idx: number) => {
+                          // Determine color based on source for combination evaluations
+                          let badgeClass = "bg-gray-200 text-gray-800"; // Default neutral color for min requirements
+                          
+                          if (evaluation.combination_type === 'combination') {
+                            if (req.source === 'partner' && evaluation.partner_profile_id) {
+                              const partnerIndex = partnerIndexMap.get(evaluation.partner_profile_id) ?? 0;
+                              const colors = getPartnerColor(partnerIndex);
+                              badgeClass = `${colors.bg} ${colors.text} border ${colors.border}`;
+                            } else if (req.source === 'lead') {
+                              badgeClass = "bg-blue-600 text-white";
+                            }
+                          } else if (evaluation.combination_type === 'solo' && evaluation.lead_profile_id) {
+                            if (partnerIndexMap.has(evaluation.lead_profile_id)) {
+                              const partnerIndex = partnerIndexMap.get(evaluation.lead_profile_id) ?? 0;
+                              const colors = getPartnerColor(partnerIndex);
+                              badgeClass = `${colors.bg} ${colors.text} border ${colors.border}`;
+                            } else {
+                              badgeClass = "bg-blue-600 text-white";
+                            }
+                          }
+                          
+                          return (
+                            <Badge 
+                              key={`min-${idx}`} 
+                              variant="outline"
+                              className={`text-xs ${badgeClass}`}
+                            >
+                              {req.keyword}
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
