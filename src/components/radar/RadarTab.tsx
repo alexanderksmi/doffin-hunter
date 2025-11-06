@@ -511,13 +511,8 @@ export const RadarTab = () => {
       const allEvalsWithCombos = Array.from(tenderMap.values());
 
       const filtered = allEvalsWithCombos.filter((evaluation: any) => {
-        // Always include if minimum requirements are met
-        if (evaluation.all_minimum_requirements_met) return true;
-        
-        // Otherwise check score threshold
         const displayScore = calculateDisplayScore(evaluation);
-        if (displayScore < scoreThreshold) return false;
-        return true;
+        return displayScore >= scoreThreshold;
       });
 
       // Apply sorting based on viewFilter
@@ -565,13 +560,8 @@ export const RadarTab = () => {
       const filtered = (evals || []).filter((evaluation: any) => {
         if (!evaluation) return false;
         
-        // Always include if minimum requirements are met
-        if (evaluation.all_minimum_requirements_met) return true;
-        
-        // Otherwise check score threshold
         const displayScore = calculateDisplayScore(evaluation);
-        if (displayScore < scoreThreshold) return false;
-        return true;
+        return displayScore >= scoreThreshold;
       });
 
       // Apply sorting based on viewFilter
@@ -683,13 +673,8 @@ export const RadarTab = () => {
       const filtered = combinedEvals.filter((evaluation: any) => {
         if (!evaluation) return false;
         
-        // Always include if minimum requirements are met
-        if (evaluation.all_minimum_requirements_met) return true;
-        
-        // Otherwise check score threshold
         const displayScore = calculateDisplayScore(evaluation);
-        if (displayScore < scoreThreshold) return false;
-        return true;
+        return displayScore >= scoreThreshold;
       });
 
       // Apply sorting based on viewFilter
