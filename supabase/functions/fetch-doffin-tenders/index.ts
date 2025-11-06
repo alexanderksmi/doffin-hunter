@@ -165,26 +165,13 @@ serve(async (req) => {
           .eq('org_id', org.id)
           .maybeSingle();
 
-        // Get source update timestamp from Doffin
-        const sourceUpdatedAt = tender.lastUpdated || tender.modifiedDate || tender.publicationDate;
-
-        // Skip if tender exists and hasn't been updated
-        if (existingTender && sourceUpdatedAt) {
-          const existingTime = new Date(existingTender.source_updated_at).getTime();
-          const sourceTime = new Date(sourceUpdatedAt).getTime();
-          
-          if (sourceTime <= existingTime) {
-            continue; // Skip unchanged tender
-          }
-          
-          console.log(`Tender ${doffinId} updated since last sync, will update`);
-        }
-
+        // Skip if tender already exists (no updates for now)
         if (existingTender) {
-          continue; // For now, skip updates - only insert new ones
+          continue;
         }
 
         // Extract tender data
+        const sourceUpdatedAt = tender.lastUpdated || tender.modifiedDate || tender.publicationDate;
         const cpvCodes = tender.cpvCodes || [];
         const client = tender.buyer?.[0]?.name || null;
         const deadline = tender.deadline || null;
