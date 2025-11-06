@@ -384,7 +384,6 @@ export const RadarTab = () => {
         `)
         .eq('organization_id', organizationId)
         .eq('is_active', true)
-        .gte('total_score', 1)
         .order('total_score', { ascending: false });
 
       if (error) {
@@ -416,8 +415,7 @@ export const RadarTab = () => {
             `)
             .eq('organization_id', organizationId)
             .eq('lead_profile_id', combo.ownProfileId)
-            .eq('is_active', true)
-            .gte('total_score', 1);
+            .eq('is_active', true);
 
           const { data: partnerEvals } = await supabase
             .from('tender_evaluations')
@@ -436,8 +434,7 @@ export const RadarTab = () => {
             `)
             .eq('organization_id', organizationId)
             .eq('lead_profile_id', combo.partnerProfileId)
-            .eq('is_active', true)
-            .gte('total_score', 1);
+            .eq('is_active', true);
 
           // Find tenders that match BOTH profiles
           const ownTenderIds = new Set((ownEvals || []).map((e: any) => e.tender_id));
