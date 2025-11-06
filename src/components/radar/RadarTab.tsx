@@ -493,21 +493,17 @@ export const RadarTab = () => {
         }
       }
 
-      // Merge solo and combination evaluations, keeping the one with highest score per tender
+      // Merge solo and combination evaluations, prioritizing combined matches
       const tenderMap = new Map<string, any>();
       
-      // Add solo evaluations
-      (allEvals || []).forEach((evaluation: any) => {
-        const existing = tenderMap.get(evaluation.tender_id);
-        if (!existing || evaluation.total_score > existing.total_score) {
-          tenderMap.set(evaluation.tender_id, evaluation);
-        }
+      // First, add ALL combination evaluations (these take priority)
+      allCombinedEvals.forEach((evaluation: any) => {
+        tenderMap.set(evaluation.tender_id, evaluation);
       });
 
-      // Add combination evaluations (may override solo if score is higher)
-      allCombinedEvals.forEach((evaluation: any) => {
-        const existing = tenderMap.get(evaluation.tender_id);
-        if (!existing || evaluation.total_score > existing.total_score) {
+      // Then, add solo evaluations ONLY if tender is not already in map
+      (allEvals || []).forEach((evaluation: any) => {
+        if (!tenderMap.has(evaluation.tender_id)) {
           tenderMap.set(evaluation.tender_id, evaluation);
         }
       });
