@@ -20,19 +20,79 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const prompt = `Du får firmanavn, domene og bransje for ett selskap. Bruk kun offentlig kjent og plausibel informasjon om selskapet og bransjen, og vær konservativ.
+    // Fetch the website content
+    let websiteContent = "";
+    try {
+      console.log(`Fetching website: https://${domain}`);
+      const websiteResponse = await fetch(`https://${domain}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; SjekkAnbud/1.0; +https://sjekkanbud.no)'
+        },
+        redirect: 'follow'
+      });
+      
+      if (websiteResponse.ok) {
+        const html = await websiteResponse.text();
+        // Extract text from HTML (simple approach - remove script and style tags, then strip HTML)
+        websiteContent = html
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 8000); // Limit to first 8000 characters
+        
+        console.log(`Successfully fetched ${websiteContent.length} characters from ${domain}`);
+      } else {
+        console.warn(`Failed to fetch ${domain}: ${websiteResponse.status}`);
+      }
+    } catch (fetchError) {
+      console.warn(`Error fetching website ${domain}:`, fetchError);
+      // Continue without website content
+    }
+
+    const prompt = websiteContent 
+      ? `Du får firmanavn, domene, bransje OG innhold fra selskapets nettside. Analyser nettsiden nøye for å forstå hva selskapet faktisk tilbyr og markedsfører seg som.
 
 Selskap: ${companyName}
 Domene: ${domain}
 Bransje: ${industry}
 
-Foreslå:
-- 2-3 minimumskrav som må være til stede for at et anbud er relevant for dette selskapet
+INNHOLD FRA NETTSIDEN:
+${websiteContent}
+
+Basert på nettsidens innhold, foreslå:
+
+MINIMUMSKRAV (2-3 stk): Dette skal være de VIKTIGSTE ordene/begrepene som går igjen på nettsiden deres - hva de faktisk markedsfører seg som. For eksempel hvis de skriver mye om "rådgivning" og "prosjektledelse", skal dette være minimumskrav. Dette er harde dørvakter som MÅ være tilstede.
+
+STØTTEORD (3-6 stk): Andre viktige ord/begreper som beskriver deres produkter, tjenester eller kompetanseområder. Disse øker relevans. Bruk vekter +1 til +3.
+
+NEGATIVORD (1-2 stk): Ord som indikerer at anbudet IKKE er relevant for dem. Bruk vekter -1 til -3.
+
+CPV-KODER (2-3 stk): Velg relevante CPV-koder basert på hva selskapet faktisk tilbyr.
+
+Vær SPESIFIKK basert på nettsidens faktiske innhold. Språket skal være nøkternt, norskt og B2B-vennlig.
+
+Svar BARE med JSON i dette formatet:
+{
+  "minimumRequirements": ["ord1", "ord2"],
+  "supportKeywords": [{"keyword": "ord", "weight": 2}],
+  "negativeKeywords": [{"keyword": "ord", "weight": -2}],
+  "cpvCodes": [{"code": "12345678", "weight": 2}]
+}`
+      : `Du får firmanavn, domene og bransje for ett selskap. Nettsiden kunne ikke hentes, så bruk kun offentlig kjent informasjon om bransjen.
+
+Selskap: ${companyName}
+Domene: ${domain}
+Bransje: ${industry}
+
+Foreslå konservative, generelle søkeord basert på bransjen:
+- 2-3 minimumskrav som må være til stede for at et anbud er relevant
 - 3-6 støtteord med små heltallsvekter mellom +1 og +3
 - 1-2 negativord med heltallsvekter mellom −1 og −3
 - 2-3 CPV-koder som startpunkter
 
-Ikke spekuler i proprietære detaljer, ikke overfyll med ord, og prioriter presisjon fremfor bredde. Hvis du er usikker, velg færre og mer generelle termer for bransjen. Språket skal være nøkternt, norskt og B2B-vennlig.
+Vær konservativ og hold deg til bransje-generelle termer. Språket skal være nøkternt, norskt og B2B-vennlig.
 
 Svar BARE med JSON i dette formatet:
 {
