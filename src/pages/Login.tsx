@@ -83,7 +83,23 @@ const Login = () => {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Handle duplicate email registration
+          if (error.message.includes("already") || 
+              error.message.includes("User already registered") ||
+              error.status === 422) {
+            toast({
+              title: "E-posten er allerede registrert",
+              description: "Denne e-postadressen er allerede i bruk. Vennligst logg inn i stedet.",
+              variant: "destructive",
+            });
+            setMode("login");
+            setPassword("");
+            setConfirmPassword("");
+            return;
+          }
+          throw error;
+        }
 
         if (data.user) {
           setEmailSent(true);
