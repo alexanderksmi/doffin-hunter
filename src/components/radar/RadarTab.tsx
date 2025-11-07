@@ -130,8 +130,8 @@ export const RadarTab = () => {
       const lastSync = org?.last_tender_sync_at ? new Date(org.last_tender_sync_at) : null;
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-      // If no sync or last sync was over 1 hour ago, trigger sync
-      if (!lastSync || lastSync < oneHourAgo) {
+      // If no sync has ever happened, trigger initial sync
+      if (!lastSync) {
         console.log('Triggering automatic tender sync...');
         setIsSyncing(true);
         setLoading(true);
@@ -211,94 +211,8 @@ export const RadarTab = () => {
     }
   }, [selectedCombination, minScore, viewFilter, organizationId, combinations.length]);
 
-  // Subscribe to realtime updates for tender evaluations (only when not syncing)
-  useEffect(() => {
-    if (!organizationId || isSyncing) return;
 
-    const channel = supabase
-      .channel('tender_evaluations_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tender_evaluations',
-          filter: `organization_id=eq.${organizationId}`
-        },
-        () => {
-          // Refresh evaluations when data changes
-          fetchEvaluations();
-        }
-      )
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [organizationId, isSyncing]);
-
-  // Subscribe to postgres_changes on evaluation_jobs (state-driven)
-  useEffect(() => {
-    if (!organizationId) return;
-
-    const channel = supabase
-      .channel('evaluation_jobs_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'evaluation_jobs',
-          filter: `organization_id=eq.${organizationId}`
-        },
-        async (payload: any) => {
-          const newStatus = payload.new?.status;
-          const oldStatus = payload.old?.status;
-          
-          console.log('Job status changed:', oldStatus, '->', newStatus);
-          
-          if (newStatus === 'running' && oldStatus === 'pending') {
-            toast({
-              title: "Evaluering startet",
-              description: "Behandler nye anbud...",
-            });
-          }
-          
-          if (newStatus === 'completed') {
-            const stats = payload.new?.broadcast_payload || {};
-            toast({
-              title: "Evaluering fullført",
-              description: `${stats.upserted_count || 0} oppdatert, ${stats.pruned_count || 0} fjernet`,
-            });
-            await fetchEvaluations();
-          }
-        }
-      )
-      .subscribe(async (status: string) => {
-        console.log('Evaluation jobs channel status:', status);
-        
-        // Catch-up on reconnect
-        if (status === 'SUBSCRIBED' || status === 'CHANNEL_ERROR') {
-          await checkPendingJobs();
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [organizationId]);
-
-  // Fallback polling every 60 seconds
-  useEffect(() => {
-    if (!organizationId) return;
-
-    const pollInterval = setInterval(async () => {
-      console.log('Fallback poll: Checking for completed jobs...');
-      await checkPendingJobs();
-    }, 60000); // 60 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [organizationId]);
 
   const fetchCombinations = async () => {
     const { data: profiles } = await supabase
