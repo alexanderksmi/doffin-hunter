@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, X, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,8 @@ type Keyword = {
 export const SearchSettingsPage = () => {
   const { organizationId, userRole } = useAuth();
   const { toast } = useToast();
-  const canEdit = userRole === "admin" || userRole === "editor";
+  const canEdit = userRole === "admin";
+  const isReadOnly = userRole === "editor";
   const [loading, setLoading] = useState(true);
   const [ownProfile, setOwnProfile] = useState<Profile | null>(null);
   const [partnerProfiles, setPartnerProfiles] = useState<Profile[]>([]);
@@ -515,6 +517,16 @@ export const SearchSettingsPage = () => {
           Administrer nøkkelord og innstillinger for søk
         </p>
       </div>
+
+      {isReadOnly && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Kun visning</AlertTitle>
+          <AlertDescription>
+            Du har ikke tilgang til å endre søkeinnstillinger. Kontakt en administrator for å gjøre endringer.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1">

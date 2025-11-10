@@ -56,7 +56,7 @@ const Dashboard = () => {
             {activeTab === "radar" && <RadarTab />}
             {activeTab === "matches" && <MatchesTab />}
             {activeTab === "minelop" && <MineLopTab />}
-            {activeTab === "settings" && isAdmin && <SearchSettingsPage />}
+            {activeTab === "settings" && (userRole === "admin" || userRole === "editor") && <SearchSettingsPage />}
           </main>
         </div>
       </div>
