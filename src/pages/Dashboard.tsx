@@ -46,7 +46,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-4">
               <SidebarTrigger />
               <h1 className="text-xl font-bold text-foreground">
-                Anbudsmonitor{organizationName && ` - ${organizationName}`}
+                Anbudspartner{organizationName && ` - ${organizationName}`}
               </h1>
             </div>
             <ProfileMenu />
