@@ -197,7 +197,7 @@ const Login = () => {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl">SjekkAnbud</CardTitle>
+          <CardTitle className="text-3xl">Anbudspartner</CardTitle>
           <CardDescription>
             {mode === "signup" ? "Opprett ny konto" : "Logg inn på din konto"}
           </CardDescription>
