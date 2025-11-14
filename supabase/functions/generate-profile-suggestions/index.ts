@@ -26,7 +26,7 @@ serve(async (req) => {
       console.log(`Fetching website: https://${domain}`);
       const websiteResponse = await fetch(`https://${domain}`, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; SjekkAnbud/1.0; +https://sjekkanbud.no)'
+          'User-Agent': 'Mozilla/5.0 (compatible; Anbudspartner/1.0; +https://anbudspartner.no)'
         },
         redirect: 'follow'
       });

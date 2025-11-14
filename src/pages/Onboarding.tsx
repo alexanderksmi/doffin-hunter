@@ -482,7 +482,7 @@ const Onboarding = () => {
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
       <Card className="w-full max-w-4xl">
         <CardHeader>
-          <CardTitle>Velkommen til SjekkAnbud</CardTitle>
+          <CardTitle>Velkommen til Anbudspartner</CardTitle>
           <CardDescription>
             La oss sette opp systemet for deg - Steg {step} av 4
           </CardDescription>
