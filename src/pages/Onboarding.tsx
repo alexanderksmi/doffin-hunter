@@ -37,9 +37,10 @@ const Onboarding = () => {
   const { toast } = useToast();
   const { organizationId: existingOrgId } = useAuth();
 
-  // Redirect to dashboard if user already has an organization
+  // Redirect to dashboard if user already has an organization AND is not currently onboarding
   useEffect(() => {
-    if (existingOrgId) {
+    const isOnboarding = localStorage.getItem("onboarding_in_progress");
+    if (existingOrgId && !isOnboarding) {
       navigate("/");
     }
   }, [existingOrgId, navigate]);
@@ -82,6 +83,8 @@ const Onboarding = () => {
       });
       return;
     }
+    // Mark that onboarding is in progress
+    localStorage.setItem("onboarding_in_progress", "true");
     setStep(2);
   };
 
@@ -427,6 +430,9 @@ const Onboarding = () => {
       await supabase.functions.invoke('fetch-doffin-tenders', {
         body: { organizationId }
       });
+
+      // Clear onboarding flag
+      localStorage.removeItem("onboarding_in_progress");
 
       toast({
         title: "Oppsettet er fullført!",
