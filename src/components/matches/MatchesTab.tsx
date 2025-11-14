@@ -59,6 +59,9 @@ export const MatchesTab = () => {
   const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
 
   const isAdmin = userRole === "admin";
+  const isEditor = userRole === "editor";
+  const canEdit = isAdmin || isEditor;
+  const canView = isAdmin || isEditor || userRole === "viewer";
 
   useEffect(() => {
     if (organizationId) {
@@ -183,11 +186,11 @@ export const MatchesTab = () => {
     return date.toLocaleDateString("no-NO", { day: "numeric", month: "short", year: "numeric" });
   };
 
-  if (!isAdmin) {
+  if (!canView) {
     return (
       <Alert>
         <AlertDescription>
-          Du må være administrator for å se lagrede anbud.
+          Du har ikke tilgang til Matches-fanen.
         </AlertDescription>
       </Alert>
     );
@@ -303,21 +306,25 @@ export const MatchesTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditTender(saved)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteClick(saved)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditTender(saved)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClick(saved)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -333,6 +340,7 @@ export const MatchesTab = () => {
           onOpenChange={setDialogOpen}
           savedTender={selectedTender}
           onUpdate={loadSavedTenders}
+          readOnly={!canEdit}
         />
       )}
 

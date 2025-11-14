@@ -63,6 +63,9 @@ export const MineLopTab = () => {
   const [tenderToDelete, setTenderToDelete] = useState<MineLopTender | null>(null);
 
   const isAdmin = userRole === "admin";
+  const isEditor = userRole === "editor";
+  const canEdit = isAdmin || isEditor;
+  const canView = isAdmin || isEditor || userRole === "viewer";
 
   useEffect(() => {
     if (organizationId) {
@@ -245,13 +248,14 @@ export const MineLopTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewTender(tender)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewTender(tender)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {canEdit && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -259,6 +263,7 @@ export const MineLopTab = () => {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                    )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -269,12 +274,13 @@ export const MineLopTab = () => {
       </div>
 
       {selectedTender && (
-        <TenderWorkflowDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          tender={selectedTender}
-          onUpdate={loadMineLopTenders}
-        />
+      <TenderWorkflowDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        tender={selectedTender}
+        onUpdate={loadMineLopTenders}
+        readOnly={!canEdit}
+      />
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

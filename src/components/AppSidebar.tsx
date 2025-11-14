@@ -33,7 +33,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems
-                .filter((item) => !item.adminOnly || userRole === "admin" || userRole === "editor")
+                .filter((item) => !item.adminOnly || userRole === "admin" || userRole === "editor" || userRole === "viewer")
                 .map((item) => {
                   const isActive = activeTab === item.tab;
                   return (
