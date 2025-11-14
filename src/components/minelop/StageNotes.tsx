@@ -6,9 +6,10 @@ type StageNotesProps = {
   stageLabel: string;
   notes: string;
   onChange: (value: string) => void;
+  readOnly?: boolean;
 };
 
-export const StageNotes = ({ stageKey, stageLabel, notes, onChange }: StageNotesProps) => {
+export const StageNotes = ({ stageKey, stageLabel, notes, onChange, readOnly = false }: StageNotesProps) => {
   return (
     <div className="space-y-2">
       <Label htmlFor={`notes-${stageKey}`} className="text-base font-semibold">
@@ -21,6 +22,7 @@ export const StageNotes = ({ stageKey, stageLabel, notes, onChange }: StageNotes
         onChange={(e) => onChange(e.target.value)}
         rows={6}
         className="min-h-[150px]"
+        disabled={readOnly}
       />
     </div>
   );

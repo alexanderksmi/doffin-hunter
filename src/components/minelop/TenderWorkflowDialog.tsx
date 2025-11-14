@@ -22,6 +22,7 @@ type TenderWorkflowDialogProps = {
   onOpenChange: (open: boolean) => void;
   tender: any;
   onUpdate: () => void;
+  readOnly?: boolean;
 };
 
 const stages = [
@@ -38,6 +39,7 @@ export const TenderWorkflowDialog = ({
   onOpenChange,
   tender,
   onUpdate,
+  readOnly = false,
 }: TenderWorkflowDialogProps) => {
   const { toast } = useToast();
   const [currentStage, setCurrentStage] = useState(tender.current_stage);
@@ -82,14 +84,18 @@ export const TenderWorkflowDialog = ({
   };
 
   const handleStageChange = (stageKey: string) => {
-    setCurrentStage(stageKey);
+    if (!readOnly) {
+      setCurrentStage(stageKey);
+    }
   };
 
   const handleNoteChange = (stageKey: string, value: string) => {
-    setStageNotes((prev) => ({
-      ...prev,
-      [stageKey]: value,
-    }));
+    if (!readOnly) {
+      setStageNotes((prev) => ({
+        ...prev,
+        [stageKey]: value,
+      }));
+    }
   };
 
   const formatDate = (dateString: string | null) => {
@@ -198,6 +204,7 @@ export const TenderWorkflowDialog = ({
               stageLabel={stages.find((s) => s.key === currentStage)?.label || ""}
               notes={stageNotes[currentStage] || ""}
               onChange={(value) => handleNoteChange(currentStage, value)}
+              readOnly={readOnly}
             />
 
             <Separator />
@@ -214,9 +221,11 @@ export const TenderWorkflowDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Lukk
           </Button>
-          <Button onClick={handleSaveNotes} disabled={saving}>
-            Lagre endringer
-          </Button>
+          {!readOnly && (
+            <Button onClick={handleSaveNotes} disabled={saving}>
+              Lagre endringer
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

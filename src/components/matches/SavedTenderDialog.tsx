@@ -30,6 +30,7 @@ type SavedTenderDialogProps = {
   onOpenChange: (open: boolean) => void;
   savedTender: any;
   onUpdate: () => void;
+  readOnly?: boolean;
 };
 
 export const SavedTenderDialog = ({
@@ -37,6 +38,7 @@ export const SavedTenderDialog = ({
   onOpenChange,
   savedTender,
   onUpdate,
+  readOnly = false,
 }: SavedTenderDialogProps) => {
   const { toast } = useToast();
   const { organizationId } = useAuth();
@@ -312,6 +314,7 @@ export const SavedTenderDialog = ({
               value={comments}
               onChange={(e) => setComments(e.target.value)}
               rows={4}
+              disabled={readOnly}
             />
           </div>
 
@@ -327,12 +330,13 @@ export const SavedTenderDialog = ({
               value={[relevanceScore]}
               onValueChange={(value) => setRelevanceScore(value[0])}
               className="w-full"
+              disabled={readOnly}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="criticality">Tidskritisk</Label>
-            <Select value={timeCriticality} onValueChange={setTimeCriticality}>
+            <Select value={timeCriticality} onValueChange={setTimeCriticality} disabled={readOnly}>
               <SelectTrigger id="criticality">
                 <SelectValue />
               </SelectTrigger>
@@ -346,21 +350,25 @@ export const SavedTenderDialog = ({
         </div>
 
         <DialogFooter className="flex justify-between sm:justify-between">
-          <Button
-            variant="default"
-            onClick={handleMoveToMineLop}
-            disabled={saving}
-          >
-            <ArrowRight className="mr-2 h-4 w-4" />
-            Overfør til Mine Løp
-          </Button>
+          {!readOnly && (
+            <Button
+              variant="default"
+              onClick={handleMoveToMineLop}
+              disabled={saving}
+            >
+              <ArrowRight className="mr-2 h-4 w-4" />
+              Overfør til Mine Løp
+            </Button>
+          )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Avbryt
+              {readOnly ? "Lukk" : "Avbryt"}
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              Lagre
-            </Button>
+            {!readOnly && (
+              <Button onClick={handleSave} disabled={saving}>
+                Lagre
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

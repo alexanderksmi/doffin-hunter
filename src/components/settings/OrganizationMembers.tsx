@@ -33,41 +33,13 @@ export const OrganizationMembers = () => {
   const loadMembers = async () => {
     setLoading(true);
     try {
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("id, user_id, role")
-        .eq("organization_id", organizationId);
+      const { data, error } = await supabase.functions.invoke('get-organization-members', {
+        body: { organizationId }
+      });
 
-      if (rolesError) throw rolesError;
+      if (error) throw error;
 
-      // Fetch user data from auth.users - we can't use admin API from frontend
-      // So we'll just show email from the current user's perspective
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      const membersWithEmails: Member[] = await Promise.all(
-        (roles || []).map(async (role) => {
-          // If it's the current user, we have their email
-          if (role.user_id === currentUser?.id) {
-            return {
-              id: role.id,
-              user_id: role.user_id,
-              role: role.role as "admin" | "editor" | "viewer",
-              email: currentUser.email || "Ukjent",
-            };
-          }
-          
-          // For other users, we don't have direct access to emails from frontend
-          // In a production app, you'd create a profiles table or use a backend function
-          return {
-            id: role.id,
-            user_id: role.user_id,
-            role: role.role as "admin" | "editor" | "viewer",
-            email: "Medlem", // Default for other users
-          };
-        })
-      );
-
-      setMembers(membersWithEmails);
+      setMembers(data.members);
     } catch (error) {
       console.error("Error loading members:", error);
       toast({
