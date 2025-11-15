@@ -13,8 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StageNotes } from "./StageNotes";
-import { StageContacts } from "./StageContacts";
-import { StageOwners } from "./StageOwners";
+import { TenderContacts } from "./TenderContacts";
+import { TenderOwners } from "./TenderOwners";
 import { Separator } from "@/components/ui/separator";
 
 type TenderWorkflowDialogProps = {
@@ -130,13 +130,19 @@ export const TenderWorkflowDialog = ({
           <DialogDescription>
             <div className="space-y-2 mt-2">
               <div className="flex items-center gap-2">
-                <span className="font-medium">Oppdragsgiver:</span>
-                <span>{tender.tender.client || "N/A"}</span>
+                <span className="text-sm font-medium">Oppdragsgiver:</span>
+                <span className="text-sm">{tender.tender.client || "N/A"}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-medium">Frist:</span>
-                <span>{formatDate(tender.tender.deadline)}</span>
+                <span className="text-sm font-medium">Frist:</span>
+                <span className="text-sm">{formatDate(tender.tender.deadline)}</span>
               </div>
+              {tender.comments && (
+                <div className="mt-4 p-3 bg-muted rounded-md">
+                  <span className="text-sm font-medium">Kommentarer:</span>
+                  <p className="text-sm mt-1">{tender.comments}</p>
+                </div>
+              )}
             </div>
           </DialogDescription>
         </DialogHeader>

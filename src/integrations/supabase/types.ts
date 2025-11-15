@@ -496,7 +496,6 @@ export type Database = {
           phone: string | null
           role: string | null
           saved_tender_id: string
-          stage: Database["public"]["Enums"]["tender_stage"]
           updated_at: string | null
         }
         Insert: {
@@ -507,7 +506,6 @@ export type Database = {
           phone?: string | null
           role?: string | null
           saved_tender_id: string
-          stage: Database["public"]["Enums"]["tender_stage"]
           updated_at?: string | null
         }
         Update: {
@@ -518,7 +516,6 @@ export type Database = {
           phone?: string | null
           role?: string | null
           saved_tender_id?: string
-          stage?: Database["public"]["Enums"]["tender_stage"]
           updated_at?: string | null
         }
         Relationships: [
@@ -654,8 +651,8 @@ export type Database = {
           email: string | null
           id: string
           name: string
+          role: string | null
           saved_tender_id: string
-          stage: Database["public"]["Enums"]["tender_stage"]
           updated_at: string | null
         }
         Insert: {
@@ -663,8 +660,8 @@ export type Database = {
           email?: string | null
           id?: string
           name: string
+          role?: string | null
           saved_tender_id: string
-          stage: Database["public"]["Enums"]["tender_stage"]
           updated_at?: string | null
         }
         Update: {
@@ -672,8 +669,8 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string
+          role?: string | null
           saved_tender_id?: string
-          stage?: Database["public"]["Enums"]["tender_stage"]
           updated_at?: string | null
         }
         Relationships: [
