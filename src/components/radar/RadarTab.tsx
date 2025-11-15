@@ -372,10 +372,8 @@ export const RadarTab = () => {
               source: 'partner'
             }));
 
+            // Keep ALL requirements, including duplicates from different sources
             const allReqs = [...ownReqs, ...partnerReqs];
-            const uniqueReqs = Array.from(
-              new Map(allReqs.map(req => [req.keyword.toLowerCase(), req])).values()
-            );
 
             // Combine support keywords from both profiles
             const ownSupport = ((ownEval.matched_support_keywords as any) || []).map((kw: any) => ({
@@ -393,7 +391,7 @@ export const RadarTab = () => {
 
             return {
               ...ownEval,
-              met_minimum_requirements: uniqueReqs,
+              met_minimum_requirements: allReqs,
               matched_support_keywords: allSupport,
               total_score: combinedScore,
               combination_type: 'combination',
@@ -728,7 +726,7 @@ export const RadarTab = () => {
     <div className="space-y-4">
       <div className="flex gap-4 items-center flex-wrap">
         <div className="flex items-center gap-2">
-          <Label>Filtrer:</Label>
+          <Label>Oppdragstaker:</Label>
           <Select value={selectedCombination} onValueChange={setSelectedCombination}>
             <SelectTrigger className="w-64">
               <SelectValue />
@@ -800,7 +798,7 @@ export const RadarTab = () => {
               <TableHead className="w-12">Link</TableHead>
               <TableHead className="w-[30%]">Tittel</TableHead>
               <TableHead>Oppdragsgiver</TableHead>
-              <TableHead>Filtrer</TableHead>
+              <TableHead>Oppdragstaker</TableHead>
               <TableHead className="w-16">Score</TableHead>
               <TableHead>Min. krav</TableHead>
               <TableHead>Støtteord</TableHead>
