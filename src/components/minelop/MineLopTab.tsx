@@ -156,11 +156,11 @@ export const MineLopTab = () => {
     return date.toLocaleDateString("no-NO", { day: "numeric", month: "short", year: "numeric" });
   };
 
-  if (!isAdmin) {
+  if (!canView) {
     return (
       <Alert>
         <AlertDescription>
-          Du må være administrator for å se Mine Løp.
+          Du har ikke tilgang til Mine Løp-fanen.
         </AlertDescription>
       </Alert>
     );
