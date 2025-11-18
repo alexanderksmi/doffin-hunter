@@ -722,7 +722,6 @@ export type Database = {
           id: string
           owner_id: string
           saved_tender_id: string
-          stage: Database["public"]["Enums"]["tender_stage"]
           title: string
           updated_at: string | null
         }
@@ -734,7 +733,6 @@ export type Database = {
           id?: string
           owner_id: string
           saved_tender_id: string
-          stage: Database["public"]["Enums"]["tender_stage"]
           title: string
           updated_at?: string | null
         }
@@ -746,7 +744,6 @@ export type Database = {
           id?: string
           owner_id?: string
           saved_tender_id?: string
-          stage?: Database["public"]["Enums"]["tender_stage"]
           title?: string
           updated_at?: string | null
         }
