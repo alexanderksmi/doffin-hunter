@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ExternalLink, Edit, Bookmark, Trash2 } from "lucide-react";
 import {
@@ -57,11 +58,16 @@ export const MatchesTab = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tenderToDelete, setTenderToDelete] = useState<SavedTender | null>(null);
   const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
+  const [filterType, setFilterType] = useState<"all" | "partner">("all");
 
   const isAdmin = userRole === "admin";
   const isEditor = userRole === "editor";
   const canEdit = isAdmin || isEditor;
   const canView = isAdmin || isEditor || userRole === "viewer";
+
+  const filteredTenders = filterType === "partner" 
+    ? savedTenders.filter(tender => tender.combination_type !== 'solo')
+    : savedTenders;
 
   useEffect(() => {
     if (organizationId) {
@@ -213,8 +219,22 @@ export const MatchesTab = () => {
             Anbud du har lagret for videre vurdering
           </p>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {savedTenders.length} lagrede anbud
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="filter-type">Filtrer:</Label>
+            <select
+              id="filter-type"
+              className="border rounded-md px-3 py-1.5 text-sm"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as "all" | "partner")}
+            >
+              <option value="all">Alle</option>
+              <option value="partner">Partnermatches</option>
+            </select>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {filteredTenders.length} lagrede anbud
+          </div>
         </div>
       </div>
 
@@ -233,18 +253,24 @@ export const MatchesTab = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {savedTenders.length === 0 ? (
+            {filteredTenders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <Bookmark className="h-8 w-8 text-muted-foreground/50" />
-                    <p className="font-medium">Ingen lagrede anbud</p>
-                    <p className="text-sm">Gå til Radar-fanen for å lagre anbud</p>
+                    <p className="font-medium">
+                      {filterType === "partner" ? "Ingen partnermatches" : "Ingen lagrede anbud"}
+                    </p>
+                    <p className="text-sm">
+                      {filterType === "partner" 
+                        ? "Ingen anbud med partnere funnet" 
+                        : "Gå til Radar-fanen for å lagre anbud"}
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              savedTenders.map((saved) => (
+              filteredTenders.map((saved) => (
                 <TableRow key={saved.id}>
                   <TableCell>
                     <a
