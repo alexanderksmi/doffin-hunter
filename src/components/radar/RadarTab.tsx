@@ -40,7 +40,7 @@ interface TenderEvaluation {
 }
 
 export const RadarTab = () => {
-  const { organizationId } = useAuth();
+  const { organizationId, userRole } = useAuth();
   const { toast } = useToast();
   const [evaluations, setEvaluations] = useState<TenderEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -966,16 +966,18 @@ export const RadarTab = () => {
                     {formatDate(evaluation.tender.published_date)}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSaveTender(evaluation)}
-                      title="Lagre anbud"
-                    >
-                      <Bookmark 
-                        className={`h-4 w-4 ${savedTenderIds.has(evaluation.tender_id) ? 'fill-current' : ''}`}
-                      />
-                    </Button>
+                    {userRole !== 'viewer' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSaveTender(evaluation)}
+                        title="Lagre anbud"
+                      >
+                        <Bookmark 
+                          className={`h-4 w-4 ${savedTenderIds.has(evaluation.tender_id) ? 'fill-current' : ''}`}
+                        />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

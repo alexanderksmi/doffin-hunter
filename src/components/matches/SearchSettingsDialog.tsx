@@ -199,7 +199,7 @@ export const SearchSettingsDialog = ({ open, onOpenChange }: SearchSettingsDialo
     return (
       <Tabs defaultValue="minimum" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="minimum">Minimumskrav</TabsTrigger>
+          <TabsTrigger value="minimum">Min. Krav</TabsTrigger>
           <TabsTrigger value="support">Støtteord</TabsTrigger>
           <TabsTrigger value="negative">Negativord</TabsTrigger>
           <TabsTrigger value="cpv">CPV-koder</TabsTrigger>
