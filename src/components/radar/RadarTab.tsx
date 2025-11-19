@@ -434,6 +434,114 @@ export const RadarTab = () => {
       return;
     }
 
+    if (selectedCombination === 'partnermatches') {
+      // Show only partner matches (combination evaluations)
+      const allCombinedEvals: any[] = [];
+      
+      for (const combo of combinations) {
+        if (combo.type === 'combination') {
+          // Fetch ACTIVE evaluations for both profiles
+          const { data: ownEvals } = await supabase
+            .from('tender_evaluations')
+            .select(`
+              *,
+              tender:tender_id (
+                id,
+                title,
+                client,
+                deadline,
+                published_date,
+                doffin_url,
+                body
+              ),
+              lead_profile:lead_profile_id (profile_name)
+            `)
+            .eq('organization_id', organizationId)
+            .eq('lead_profile_id', combo.ownProfileId)
+            .eq('is_active', true);
+
+          const { data: partnerEvals } = await supabase
+            .from('tender_evaluations')
+            .select(`
+              *,
+              tender:tender_id (
+                id,
+                title,
+                client,
+                deadline,
+                published_date,
+                doffin_url,
+                body
+              ),
+              lead_profile:lead_profile_id (profile_name)
+            `)
+            .eq('organization_id', organizationId)
+            .eq('lead_profile_id', combo.partnerProfileId)
+            .eq('is_active', true);
+
+          // Find tenders that match BOTH profiles
+          const ownTenderIds = new Set((ownEvals || []).map((e: any) => e.tender_id));
+          const partnerTenderIds = new Set((partnerEvals || []).map((e: any) => e.tender_id));
+          const bothTenderIds = [...ownTenderIds].filter(id => partnerTenderIds.has(id));
+
+          // Create combined evaluations
+          const combinedEvals = bothTenderIds.map(tenderId => {
+            const ownEval = ownEvals?.find((e: any) => e.tender_id === tenderId);
+            const partnerEval = partnerEvals?.find((e: any) => e.tender_id === tenderId);
+            
+            if (!ownEval || !partnerEval) return null;
+
+            const ownReqs = ((ownEval.met_minimum_requirements as any) || []).map((req: any) => ({
+              ...req,
+              source: 'lead'
+            }));
+            const partnerReqs = ((partnerEval.met_minimum_requirements as any) || []).map((req: any) => ({
+              ...req,
+              source: 'partner'
+            }));
+            const allReqs = [...ownReqs, ...partnerReqs];
+
+            const ownSupport = ((ownEval.matched_support_keywords as any) || []).map((kw: any) => ({
+              ...kw,
+              source: 'lead'
+            }));
+            const partnerSupport = ((partnerEval.matched_support_keywords as any) || []).map((kw: any) => ({
+              ...kw,
+              source: 'partner'
+            }));
+            const allSupport = [...ownSupport, ...partnerSupport];
+
+            const combinedScore = ownEval.total_score + partnerEval.total_score;
+
+            return {
+              ...ownEval,
+              met_minimum_requirements: allReqs,
+              matched_support_keywords: allSupport,
+              total_score: combinedScore,
+              combination_type: 'combination',
+              partner_profile_id: combo.partnerProfileId,
+              explanation: `${combo.ownProfileName}: ${ownEval.total_score} poeng, ${combo.partnerProfileName}: ${partnerEval.total_score} poeng`,
+              _combo_label: `${combo.ownProfileName} + ${combo.partnerProfileName}`
+            };
+          }).filter(Boolean);
+
+          allCombinedEvals.push(...combinedEvals);
+        }
+      }
+
+      // Filter by score threshold
+      const filtered = allCombinedEvals.filter((evaluation: any) => {
+        const displayScore = calculateDisplayScore(evaluation);
+        return displayScore >= scoreThreshold;
+      });
+
+      // Apply sorting based on viewFilter
+      const sorted = applySorting(filtered, viewFilter);
+      setEvaluations(sorted as any);
+      setLoading(false);
+      return;
+    }
+
     const combo = combinations.find(c => c.id === selectedCombination);
     if (!combo) {
       setLoading(false);
@@ -731,8 +839,9 @@ export const RadarTab = () => {
             <SelectTrigger className="w-64">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background z-50">
               <SelectItem value="all">Alle treff</SelectItem>
+              <SelectItem value="partnermatches">Partnermatches</SelectItem>
               {combinations.map(combo => (
                 <SelectItem key={combo.id} value={combo.id}>
                   {combo.label}
