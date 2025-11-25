@@ -121,7 +121,7 @@ export const CreateTenderDialog = ({ open, onOpenChange, onSuccess }: CreateTend
       let partnerProfileId = null;
       const combinationType = formData.combinationType;
 
-      if (combinationType === "partner" && formData.partnerId) {
+      if ((combinationType === "lead_partner" || combinationType === "partner_led") && formData.partnerId) {
         const ownProfile = profiles.find((p) => p.is_own_profile);
         leadProfileId = ownProfile?.id || null;
         partnerProfileId = formData.partnerId;
@@ -262,12 +262,13 @@ export const CreateTenderDialog = ({ open, onOpenChange, onSuccess }: CreateTend
               </SelectTrigger>
             <SelectContent>
               <SelectItem value="solo">Solo</SelectItem>
-              <SelectItem value="partner">Med partner</SelectItem>
+              <SelectItem value="lead_partner">Med partner (vi leder)</SelectItem>
+              <SelectItem value="partner_led">Med partner (partner leder)</SelectItem>
             </SelectContent>
             </Select>
           </div>
 
-          {formData.combinationType === "partner" && (
+          {(formData.combinationType === "lead_partner" || formData.combinationType === "partner_led") && (
             <div className="space-y-2">
               <Label htmlFor="partnerId">Partner</Label>
               <Select
