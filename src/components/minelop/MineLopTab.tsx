@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink, Eye, FolderOpen, Trash2 } from "lucide-react";
+import { Loader2, ExternalLink, Eye, FolderOpen, Trash2, Plus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TenderWorkflowDialog } from "./TenderWorkflowDialog";
+import { getPartnerColor } from "@/lib/partnerColors";
+import { CreateTenderDialog } from "./CreateTenderDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,12 +25,15 @@ type MineLopTender = {
   id: string;
   tender_id: string;
   evaluation_id: string;
+  combination_type: string;
+  partner_profile_id: string | null;
   current_stage: string;
   relevance_score: number | null;
   time_criticality: string | null;
   comments: string | null;
   stage_notes: any;
   created_at: string;
+  partnerName?: string;
   tender: {
     id: string;
     title: string;
@@ -61,6 +66,8 @@ export const MineLopTab = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tenderToDelete, setTenderToDelete] = useState<MineLopTender | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
 
   const isAdmin = userRole === "admin";
   const isEditor = userRole === "editor";
@@ -69,9 +76,27 @@ export const MineLopTab = () => {
 
   useEffect(() => {
     if (organizationId) {
+      loadPartnerIndexes();
       loadMineLopTenders();
     }
   }, [organizationId]);
+
+  const loadPartnerIndexes = async () => {
+    const { data: profiles } = await supabase
+      .from('company_profiles')
+      .select('id, is_own_profile, created_at')
+      .eq('organization_id', organizationId)
+      .eq('is_own_profile', false)
+      .order('created_at', { ascending: true });
+
+    if (profiles) {
+      const indexMap = new Map<string, number>();
+      profiles.forEach((partner, index) => {
+        indexMap.set(partner.id, index);
+      });
+      setPartnerIndexMap(indexMap);
+    }
+  };
 
   const loadMineLopTenders = async () => {
     setLoading(true);
@@ -98,7 +123,22 @@ export const MineLopTab = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setMineLopTenders(data as any || []);
+
+      // Enrich with partner names
+      const enrichedData = await Promise.all((data || []).map(async (tender: any) => {
+        let partnerName = null;
+        if (tender.combination_type === 'combination' && tender.partner_profile_id) {
+          const { data: partnerProfile } = await supabase
+            .from("company_profiles")
+            .select("profile_name")
+            .eq("id", tender.partner_profile_id)
+            .single();
+          partnerName = partnerProfile?.profile_name;
+        }
+        return { ...tender, partnerName };
+      }));
+
+      setMineLopTenders(enrichedData);
     } catch (error) {
       console.error("Error loading Mine Løp tenders:", error);
       toast({
@@ -183,8 +223,16 @@ export const MineLopTab = () => {
             Anbudsprosesser du er en del av
           </p>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {mineLopTenders.length} aktive løp
+        <div className="flex items-center gap-4">
+          {canEdit && (
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Opprett manuelt
+            </Button>
+          )}
+          <div className="text-sm text-muted-foreground">
+            {mineLopTenders.length} aktive løp
+          </div>
         </div>
       </div>
 
@@ -193,8 +241,9 @@ export const MineLopTab = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">Link</TableHead>
-              <TableHead className="w-[30%]">Tittel</TableHead>
+              <TableHead className="w-[25%]">Tittel</TableHead>
               <TableHead>Oppdragsgiver</TableHead>
+              <TableHead>Partner</TableHead>
               <TableHead>Fase</TableHead>
               <TableHead>Relevans</TableHead>
               <TableHead>Frist</TableHead>
@@ -204,7 +253,7 @@ export const MineLopTab = () => {
           <TableBody>
             {mineLopTenders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <FolderOpen className="h-8 w-8 text-muted-foreground/50" />
                     <p className="font-medium">Ingen aktive løp</p>
@@ -230,6 +279,21 @@ export const MineLopTab = () => {
                   </TableCell>
                   <TableCell className="text-sm">
                     {tender.tender.client || "N/A"}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {tender.combination_type === 'combination' ? (
+                      (() => {
+                        const partnerIndex = tender.partner_profile_id ? partnerIndexMap.get(tender.partner_profile_id) ?? 0 : 0;
+                        const colors = getPartnerColor(partnerIndex);
+                        return (
+                          <Badge variant="secondary" className={`${colors.bg} ${colors.text}`}>
+                            {tender.partnerName || "Partner"}
+                          </Badge>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">
@@ -282,6 +346,12 @@ export const MineLopTab = () => {
         readOnly={!canEdit}
       />
       )}
+
+      <CreateTenderDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={loadMineLopTenders}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
