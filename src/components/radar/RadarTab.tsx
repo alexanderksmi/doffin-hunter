@@ -45,7 +45,7 @@ export const RadarTab = () => {
   const [evaluations, setEvaluations] = useState<TenderEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [selectedCombination, setSelectedCombination] = useState<string>("all");
+  const [selectedCombination, setSelectedCombination] = useState<string>("partnermatches");
   const [combinations, setCombinations] = useState<any[]>([]);
   const [partnerIndexMap, setPartnerIndexMap] = useState<Map<string, number>>(new Map());
   const [minScore, setMinScore] = useState<string>("3");
