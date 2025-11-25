@@ -215,11 +215,11 @@ export const TenderWorkflowDialog = ({
 
             <Separator />
 
-            <TenderContacts savedTenderId={tender.id} readOnly={readOnly} />
+            <TenderOwners savedTenderId={tender.id} readOnly={readOnly} />
 
             <Separator />
 
-            <TenderOwners savedTenderId={tender.id} readOnly={readOnly} />
+            <TenderContacts savedTenderId={tender.id} readOnly={readOnly} />
           </div>
         </div>
 
