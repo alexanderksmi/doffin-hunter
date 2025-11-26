@@ -182,19 +182,30 @@ export const CreateTenderDialog = ({ open, onOpenChange, onSuccess }: CreateTend
             .eq("id", partnerProfileId)
             .single();
 
-          if (partnerProfile?.partners?.partner_domain) {
-            const partnerDomain = normalizeDomain(partnerProfile.partners.partner_domain);
+          console.log("Partner profile data:", partnerProfile);
 
-            // Find partner organization by domain (normalized)
-            const { data: partnerOrg } = await supabase
+          if (partnerProfile?.partners?.partner_domain) {
+            const rawDomain = partnerProfile.partners.partner_domain;
+            const partnerDomain = normalizeDomain(rawDomain);
+            console.log("Looking for organization with domain:", partnerDomain, "(normalized from:", rawDomain, ")");
+
+            // Find partner organization by domain (normalized comparison on both sides)
+            const { data: allOrgs } = await supabase
               .from("organizations")
-              .select("id")
-              .ilike("domain", partnerDomain)
-              .single();
+              .select("id, domain");
+            
+            console.log("All organizations:", allOrgs);
+            
+            // Manual normalized matching
+            const partnerOrg = allOrgs?.find(org => 
+              normalizeDomain(org.domain) === partnerDomain
+            );
+
+            console.log("Found partner org:", partnerOrg);
 
             if (partnerOrg) {
               // Create shared tender link
-              await supabase.from("shared_tender_links").insert({
+              const { error: linkError } = await supabase.from("shared_tender_links").insert({
                 source_organization_id: organizationId!,
                 source_saved_tender_id: savedTenderData.id,
                 target_organization_id: partnerOrg.id,
@@ -202,10 +213,22 @@ export const CreateTenderDialog = ({ open, onOpenChange, onSuccess }: CreateTend
                 invited_at: new Date().toISOString(),
               });
 
-              console.log("Created invitation for partner organization:", partnerOrg.id);
+              if (linkError) {
+                console.error("Error creating shared_tender_link:", linkError);
+              } else {
+                console.log("✅ Created invitation for partner organization:", partnerOrg.id);
+                
+                // Mark source tender as shared
+                await supabase
+                  .from("saved_tenders")
+                  .update({ is_shared: true })
+                  .eq("id", savedTenderData.id);
+              }
             } else {
-              console.log("Partner organization not found for domain:", partnerDomain);
+              console.warn("❌ Partner organization not found for normalized domain:", partnerDomain);
             }
+          } else {
+            console.warn("No partner domain found in profile");
           }
         } catch (error) {
           console.error("Error creating partner invitation:", error);
