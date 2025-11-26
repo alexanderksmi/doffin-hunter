@@ -483,7 +483,7 @@ export type Database = {
           source_organization_id: string
           source_saved_tender_id: string
           status: string
-          target_organization_id: string
+          target_organization_id: string | null
           target_saved_tender_id: string | null
           updated_at: string | null
         }
@@ -496,7 +496,7 @@ export type Database = {
           source_organization_id: string
           source_saved_tender_id: string
           status?: string
-          target_organization_id: string
+          target_organization_id?: string | null
           target_saved_tender_id?: string | null
           updated_at?: string | null
         }
@@ -509,7 +509,7 @@ export type Database = {
           source_organization_id?: string
           source_saved_tender_id?: string
           status?: string
-          target_organization_id?: string
+          target_organization_id?: string | null
           target_saved_tender_id?: string | null
           updated_at?: string | null
         }
