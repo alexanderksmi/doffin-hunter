@@ -273,7 +273,10 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
                     )}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    <span className="font-medium">{invitation.sourceOrg.name}</span> inviterer deg til samarbeid
+                    <span className="font-medium">
+                      {invitation.sourceOrg?.name || invitation.cached_tender_client || "Partner"}
+                    </span>{" "}
+                    inviterer deg til samarbeid
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span>Oppdragsgiver: {invitation.cached_tender_client || "N/A"}</span>
