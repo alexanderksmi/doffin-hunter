@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useRealtimeInvitations } from "@/hooks/useRealtimeInvitations";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,12 +47,6 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [invitationToReject, setInvitationToReject] = useState<Invitation | null>(null);
 
-  useEffect(() => {
-    if (organizationId) {
-      loadInvitations();
-    }
-  }, [organizationId]);
-
   const loadInvitations = async () => {
     setLoading(true);
     try {
@@ -85,6 +80,15 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
       setLoading(false);
     }
   };
+
+  // Realtime subscription for invitations
+  useRealtimeInvitations({ onUpdate: loadInvitations });
+
+  useEffect(() => {
+    if (organizationId) {
+      loadInvitations();
+    }
+  }, [organizationId]);
 
   const handleAccept = async (invitation: Invitation) => {
     setProcessingId(invitation.id);

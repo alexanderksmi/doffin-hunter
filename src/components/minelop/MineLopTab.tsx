@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { TenderWorkflowDialog } from "./TenderWorkflowDialog";
 import { getPartnerColor } from "@/lib/partnerColors";
 import { CreateTenderDialog } from "./CreateTenderDialog";
 import { TenderInvitations } from "./TenderInvitations";
+import { useRealtimeInvitations } from "@/hooks/useRealtimeInvitations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +75,43 @@ export const MineLopTab = () => {
   const isEditor = userRole === "editor";
   const canEdit = isAdmin || isEditor;
   const canView = isAdmin || isEditor || userRole === "viewer";
+
+  // Realtime subscriptions for shared tenders updates
+  const handleRealtimeUpdate = useCallback(() => {
+    loadMineLopTenders();
+  }, []);
+
+  useRealtimeInvitations({ onUpdate: handleRealtimeUpdate });
+
+  // Subscribe to saved_tenders changes in Mine Løp
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const channel = supabase
+      .channel(`minelop:${organizationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "saved_tenders",
+          filter: `organization_id=eq.${organizationId}`,
+        },
+        (payload) => {
+          console.log("Mine Løp tender changed:", payload);
+          if (payload.new && (payload.new as any).status === "pagar") {
+            handleRealtimeUpdate();
+          } else if (payload.eventType === "DELETE") {
+            handleRealtimeUpdate();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organizationId, handleRealtimeUpdate]);
 
   useEffect(() => {
     if (organizationId) {
