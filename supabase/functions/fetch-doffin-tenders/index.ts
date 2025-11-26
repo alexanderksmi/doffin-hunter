@@ -44,17 +44,35 @@ serve(async (req) => {
     }
 
     // Delete old/expired tenders first (cleanup)
+    // BUT: protect tenders that are saved in saved_tenders
     console.log("Cleaning up old/expired tenders...");
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     
-    const { error: cleanupError } = await supabase
+    // Get all tender IDs that are saved (protected from deletion)
+    const { data: savedTenders } = await supabase
+      .from('saved_tenders')
+      .select('tender_id');
+    
+    const protectedIds = savedTenders?.map(st => st.tender_id).filter(Boolean) || [];
+    console.log(`Found ${protectedIds.length} protected tenders that won't be deleted`);
+    
+    // Build delete query that excludes protected tenders
+    let deleteQuery = supabase
       .from('tenders')
       .delete()
       .or(`deadline.lt.${oneDayAgo},created_at.lt.${sevenDaysAgo}`);
     
+    if (protectedIds.length > 0) {
+      deleteQuery = deleteQuery.not('id', 'in', `(${protectedIds.join(',')})`);
+    }
+    
+    const { error: cleanupError } = await deleteQuery;
+    
     if (cleanupError) {
       console.error("Error cleaning up tenders:", cleanupError);
+    } else {
+      console.log("Cleanup completed successfully (protected tenders preserved)");
     }
 
     // Fetch organizations (specific one if provided, otherwise all)
