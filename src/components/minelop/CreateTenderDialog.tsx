@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeDomain } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -182,9 +183,9 @@ export const CreateTenderDialog = ({ open, onOpenChange, onSuccess }: CreateTend
             .single();
 
           if (partnerProfile?.partners?.partner_domain) {
-            const partnerDomain = partnerProfile.partners.partner_domain;
+            const partnerDomain = normalizeDomain(partnerProfile.partners.partner_domain);
 
-            // Find partner organization by domain
+            // Find partner organization by domain (normalized)
             const { data: partnerOrg } = await supabase
               .from("organizations")
               .select("id")
