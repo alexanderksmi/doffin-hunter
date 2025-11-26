@@ -476,10 +476,17 @@ export type Database = {
       shared_tender_links: {
         Row: {
           accepted_at: string | null
+          cached_combination_type: string | null
+          cached_current_stage: string | null
+          cached_evaluation_id: string | null
+          cached_lead_profile_id: string | null
+          cached_partner_profile_id: string | null
           cached_source_org_name: string | null
+          cached_stage_notes: Json | null
           cached_tender_client: string | null
           cached_tender_deadline: string | null
           cached_tender_doffin_url: string | null
+          cached_tender_id: string | null
           cached_tender_title: string | null
           created_at: string | null
           id: string
@@ -494,10 +501,17 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          cached_combination_type?: string | null
+          cached_current_stage?: string | null
+          cached_evaluation_id?: string | null
+          cached_lead_profile_id?: string | null
+          cached_partner_profile_id?: string | null
           cached_source_org_name?: string | null
+          cached_stage_notes?: Json | null
           cached_tender_client?: string | null
           cached_tender_deadline?: string | null
           cached_tender_doffin_url?: string | null
+          cached_tender_id?: string | null
           cached_tender_title?: string | null
           created_at?: string | null
           id?: string
@@ -512,10 +526,17 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          cached_combination_type?: string | null
+          cached_current_stage?: string | null
+          cached_evaluation_id?: string | null
+          cached_lead_profile_id?: string | null
+          cached_partner_profile_id?: string | null
           cached_source_org_name?: string | null
+          cached_stage_notes?: Json | null
           cached_tender_client?: string | null
           cached_tender_deadline?: string | null
           cached_tender_doffin_url?: string | null
+          cached_tender_id?: string | null
           cached_tender_title?: string | null
           created_at?: string | null
           id?: string
