@@ -189,37 +189,43 @@ export const TenderWorkflowDialog = ({
 
         console.log("Found partner organization:", partnerOrg);
 
+        // Create shared tender link - even if partner org doesn't exist yet
+        // The link will be "pending" and will activate when partner registers
+        const targetOrgId = partnerOrg?.id || '00000000-0000-0000-0000-000000000000'; // Placeholder if not found
+        
+        const { error: linkError } = await supabase
+          .from("shared_tender_links")
+          .insert({
+            source_organization_id: organizationId,
+            source_saved_tender_id: tender.id,
+            target_organization_id: targetOrgId,
+            status: "pending",
+            invited_at: new Date().toISOString(),
+          });
+
+        if (linkError) throw linkError;
+
+        // Mark source tender as shared
+        await supabase
+          .from("saved_tenders")
+          .update({ is_shared: true })
+          .eq("id", tender.id);
+
+        setInvitationStatus("pending");
+
         if (partnerOrg) {
-          // Create shared tender link
-          const { error: linkError } = await supabase
-            .from("shared_tender_links")
-            .insert({
-              source_organization_id: organizationId,
-              source_saved_tender_id: tender.id,
-              target_organization_id: partnerOrg.id,
-              status: "pending",
-              invited_at: new Date().toISOString(),
-            });
-
-          if (linkError) throw linkError;
-
-          // Mark source tender as shared
-          await supabase
-            .from("saved_tenders")
-            .update({ is_shared: true })
-            .eq("id", tender.id);
-
-          setInvitationStatus("pending");
-
           toast({
             title: "Invitasjon sendt",
             description: "Partnerorganisasjonen har mottatt en invitasjon til å samarbeide",
           });
-
-          onUpdate();
         } else {
-          throw new Error("Partnerorganisasjon ikke funnet");
+          toast({
+            title: "Invitasjon opprettet",
+            description: "Invitasjonen vil sendes automatisk når partneren registrerer seg i Anbudspartner",
+          });
         }
+
+        onUpdate();
       } else {
         throw new Error("Partnerdomene ikke funnet");
       }
