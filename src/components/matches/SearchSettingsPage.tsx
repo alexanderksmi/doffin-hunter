@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeDomain } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -216,7 +217,7 @@ export const SearchSettingsPage = () => {
         .insert({
           organization_id: organizationId,
           partner_name: newPartnerName.trim(),
-          partner_domain: newPartnerDomain.trim(),
+          partner_domain: normalizeDomain(newPartnerDomain),
         })
         .select()
         .single();

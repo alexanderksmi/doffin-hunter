@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Plus, X, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
+import { normalizeDomain } from "@/lib/utils";
 
 type Partner = {
   name: string;
@@ -64,7 +65,7 @@ const Onboarding = () => {
 
   const addPartner = () => {
     if (newPartnerName && newPartnerDomain) {
-      setPartners([...partners, { name: newPartnerName, domain: newPartnerDomain }]);
+      setPartners([...partners, { name: newPartnerName, domain: normalizeDomain(newPartnerDomain) }]);
       setNewPartnerName("");
       setNewPartnerDomain("");
     }
@@ -195,7 +196,7 @@ const Onboarding = () => {
           .insert({
             organization_id: orgId,
             partner_name: partner.name,
-            partner_domain: partner.domain,
+            partner_domain: normalizeDomain(partner.domain),
           })
           .select()
           .single();
