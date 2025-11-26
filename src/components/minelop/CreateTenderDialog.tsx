@@ -146,22 +146,71 @@ export const CreateTenderDialog = ({ open, onOpenChange, onSuccess }: CreateTend
       if (evalError) throw evalError;
 
       // Create saved tender
-      const { error: savedError } = await supabase.from("saved_tenders").insert({
-        tender_id: tenderData.id,
-        evaluation_id: evalData.id,
-        organization_id: organizationId!,
-        saved_by: user!.id,
-        combination_type: combinationType,
-        lead_profile_id: leadProfileId,
-        partner_profile_id: partnerProfileId,
-        status: "pagar",
-        current_stage: formData.currentStage as any,
-        relevance_score: formData.relevanceScore ? parseInt(formData.relevanceScore) : null,
-        time_criticality: formData.timeCriticality || null,
-        comments: formData.comments || null,
-      });
+      const { data: savedTenderData, error: savedError } = await supabase
+        .from("saved_tenders")
+        .insert({
+          tender_id: tenderData.id,
+          evaluation_id: evalData.id,
+          organization_id: organizationId!,
+          saved_by: user!.id,
+          combination_type: combinationType,
+          lead_profile_id: leadProfileId,
+          partner_profile_id: partnerProfileId,
+          status: "pagar",
+          current_stage: formData.currentStage as any,
+          relevance_score: formData.relevanceScore ? parseInt(formData.relevanceScore) : null,
+          time_criticality: formData.timeCriticality || null,
+          comments: formData.comments || null,
+          cached_title: formData.title,
+          cached_client: formData.client || null,
+          cached_deadline: formData.deadline || null,
+          cached_doffin_url: formData.doffinUrl || null,
+        })
+        .select()
+        .single();
 
       if (savedError) throw savedError;
+
+      // If partner selected, create sharing invitation
+      if (partnerProfileId) {
+        try {
+          // Get partner domain via company_profiles -> partners
+          const { data: partnerProfile } = await supabase
+            .from("company_profiles")
+            .select("partner_id, partners(partner_domain)")
+            .eq("id", partnerProfileId)
+            .single();
+
+          if (partnerProfile?.partners?.partner_domain) {
+            const partnerDomain = partnerProfile.partners.partner_domain;
+
+            // Find partner organization by domain
+            const { data: partnerOrg } = await supabase
+              .from("organizations")
+              .select("id")
+              .ilike("domain", partnerDomain)
+              .single();
+
+            if (partnerOrg) {
+              // Create shared tender link
+              await supabase.from("shared_tender_links").insert({
+                source_organization_id: organizationId!,
+                source_saved_tender_id: savedTenderData.id,
+                target_organization_id: partnerOrg.id,
+                status: "pending",
+                invited_at: new Date().toISOString(),
+              });
+
+              console.log("Created invitation for partner organization:", partnerOrg.id);
+            } else {
+              console.log("Partner organization not found for domain:", partnerDomain);
+            }
+          }
+        } catch (error) {
+          console.error("Error creating partner invitation:", error);
+          // Don't fail the whole operation if sharing fails
+        }
+      }
 
       toast({
         title: "Anbud opprettet",
