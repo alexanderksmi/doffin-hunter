@@ -354,12 +354,19 @@ export type Database = {
         Row: {
           activity_log: Json | null
           assigned_to: string | null
+          cached_client: string | null
+          cached_deadline: string | null
+          cached_doffin_url: string | null
+          cached_title: string | null
           combination_type: string
           comments: string | null
           created_at: string | null
           current_stage: Database["public"]["Enums"]["tender_stage"] | null
+          editing_by: string | null
+          editing_started_at: string | null
           evaluation_id: string
           id: string
+          is_shared: boolean | null
           lead_profile_id: string | null
           notes: string | null
           organization_id: string
@@ -375,12 +382,19 @@ export type Database = {
         Insert: {
           activity_log?: Json | null
           assigned_to?: string | null
+          cached_client?: string | null
+          cached_deadline?: string | null
+          cached_doffin_url?: string | null
+          cached_title?: string | null
           combination_type?: string
           comments?: string | null
           created_at?: string | null
           current_stage?: Database["public"]["Enums"]["tender_stage"] | null
+          editing_by?: string | null
+          editing_started_at?: string | null
           evaluation_id: string
           id?: string
+          is_shared?: boolean | null
           lead_profile_id?: string | null
           notes?: string | null
           organization_id: string
@@ -396,12 +410,19 @@ export type Database = {
         Update: {
           activity_log?: Json | null
           assigned_to?: string | null
+          cached_client?: string | null
+          cached_deadline?: string | null
+          cached_doffin_url?: string | null
+          cached_title?: string | null
           combination_type?: string
           comments?: string | null
           created_at?: string | null
           current_stage?: Database["public"]["Enums"]["tender_stage"] | null
+          editing_by?: string | null
+          editing_started_at?: string | null
           evaluation_id?: string
           id?: string
+          is_shared?: boolean | null
           lead_profile_id?: string | null
           notes?: string | null
           organization_id?: string
@@ -452,6 +473,77 @@ export type Database = {
           },
         ]
       }
+      shared_tender_links: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          id: string
+          invited_at: string | null
+          rejected_at: string | null
+          source_organization_id: string
+          source_saved_tender_id: string
+          status: string
+          target_organization_id: string
+          target_saved_tender_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          id?: string
+          invited_at?: string | null
+          rejected_at?: string | null
+          source_organization_id: string
+          source_saved_tender_id: string
+          status?: string
+          target_organization_id: string
+          target_saved_tender_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          id?: string
+          invited_at?: string | null
+          rejected_at?: string | null
+          source_organization_id?: string
+          source_saved_tender_id?: string
+          status?: string
+          target_organization_id?: string
+          target_saved_tender_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_tender_links_source_organization_id_fkey"
+            columns: ["source_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shared_tender_links_source_saved_tender_id_fkey"
+            columns: ["source_saved_tender_id"]
+            isOneToOne: false
+            referencedRelation: "saved_tenders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shared_tender_links_target_organization_id_fkey"
+            columns: ["target_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shared_tender_links_target_saved_tender_id_fkey"
+            columns: ["target_saved_tender_id"]
+            isOneToOne: false
+            referencedRelation: "saved_tenders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_keywords: {
         Row: {
           created_at: string | null
@@ -483,6 +575,61 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_chat_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          reply_to_id: string | null
+          saved_tender_id: string
+          sender_id: string
+          sender_organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          reply_to_id?: string | null
+          saved_tender_id: string
+          sender_id: string
+          sender_organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          reply_to_id?: string | null
+          saved_tender_id?: string
+          sender_id?: string
+          sender_organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "tender_chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_chat_messages_saved_tender_id_fkey"
+            columns: ["saved_tender_id"]
+            isOneToOne: false
+            referencedRelation: "saved_tenders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_chat_messages_sender_organization_id_fkey"
+            columns: ["sender_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -889,6 +1036,10 @@ export type Database = {
           tender_id: string
           total_score: number
         }[]
+      }
+      find_organization_by_partner_domain: {
+        Args: { partner_profile_id: string }
+        Returns: string
       }
       get_cpv_with_parents: { Args: { code: string }; Returns: string[] }
       get_user_organization: { Args: { user_id: string }; Returns: string }
