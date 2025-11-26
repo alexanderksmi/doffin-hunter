@@ -476,6 +476,10 @@ export type Database = {
       shared_tender_links: {
         Row: {
           accepted_at: string | null
+          cached_tender_client: string | null
+          cached_tender_deadline: string | null
+          cached_tender_doffin_url: string | null
+          cached_tender_title: string | null
           created_at: string | null
           id: string
           invited_at: string | null
@@ -489,6 +493,10 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          cached_tender_client?: string | null
+          cached_tender_deadline?: string | null
+          cached_tender_doffin_url?: string | null
+          cached_tender_title?: string | null
           created_at?: string | null
           id?: string
           invited_at?: string | null
@@ -502,6 +510,10 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          cached_tender_client?: string | null
+          cached_tender_deadline?: string | null
+          cached_tender_doffin_url?: string | null
+          cached_tender_title?: string | null
           created_at?: string | null
           id?: string
           invited_at?: string | null

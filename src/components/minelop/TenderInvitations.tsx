@@ -23,15 +23,13 @@ type Invitation = {
   source_organization_id: string;
   source_saved_tender_id: string;
   invited_at: string;
+  cached_tender_title: string | null;
+  cached_tender_client: string | null;
+  cached_tender_deadline: string | null;
+  cached_tender_doffin_url: string | null;
   sourceOrg: {
     name: string;
   };
-  tender: {
-    cached_title: string;
-    cached_client: string;
-    cached_deadline: string;
-    cached_doffin_url: string;
-  } | null;
 };
 
 type TenderInvitationsProps = {
@@ -57,14 +55,12 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
           source_organization_id,
           source_saved_tender_id,
           invited_at,
+          cached_tender_title,
+          cached_tender_client,
+          cached_tender_deadline,
+          cached_tender_doffin_url,
           sourceOrg:organizations!shared_tender_links_source_organization_id_fkey (
             name
-          ),
-          tender:saved_tenders!shared_tender_links_source_saved_tender_id_fkey (
-            cached_title,
-            cached_client,
-            cached_deadline,
-            cached_doffin_url
           )
         `)
         .eq("target_organization_id", organizationId)
@@ -246,9 +242,6 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
     return null;
   }
 
-  // Filter out invitations where we cannot load tender details due to access rules
-  const visibleInvitations = invitations.filter((invitation) => invitation.tender);
-
   return (
     <>
       <Card>
@@ -260,17 +253,17 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {visibleInvitations.map((invitation) => (
+            {invitations.map((invitation) => (
               <div
                 key={invitation.id}
                 className="flex items-center justify-between border rounded-lg p-4"
               >
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-medium">{invitation.tender?.cached_title || "Anbud (data lastes...)"}</h4>
-                    {invitation.tender?.cached_doffin_url && (
+                    <h4 className="font-medium">{invitation.cached_tender_title || "Anbud"}</h4>
+                    {invitation.cached_tender_doffin_url && (
                       <a
-                        href={invitation.tender.cached_doffin_url}
+                        href={invitation.cached_tender_doffin_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:text-primary/80"
@@ -283,9 +276,9 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
                     <span className="font-medium">{invitation.sourceOrg.name}</span> inviterer deg til samarbeid
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>Oppdragsgiver: {invitation.tender?.cached_client || "N/A"}</span>
+                    <span>Oppdragsgiver: {invitation.cached_tender_client || "N/A"}</span>
                     <span>•</span>
-                    <span>Frist: {formatDate(invitation.tender?.cached_deadline)}</span>
+                    <span>Frist: {formatDate(invitation.cached_tender_deadline)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4">
