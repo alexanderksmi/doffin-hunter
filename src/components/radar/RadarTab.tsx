@@ -797,7 +797,7 @@ export const RadarTab = () => {
           organization_id: organizationId,
           saved_by: (await supabase.auth.getUser()).data.user?.id,
           status: "vurdering",
-          combination_type: isCombination ? 'combination' : 'solo',
+          combination_type: isCombination ? 'lead_partner' : 'solo',
           lead_profile_id: leadProfileId,
           partner_profile_id: isCombination ? partnerProfileId : null,
         });
