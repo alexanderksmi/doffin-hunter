@@ -65,7 +65,7 @@ export const SavedTenderDialog = ({
       let leadMatched: any[] = [];
       let partnerMatched: any[] = [];
 
-      if (savedTender.combination_type === 'combination') {
+      if (savedTender.combination_type === 'lead_partner' || savedTender.combination_type === 'partner_led') {
         // For combinations, fetch both evaluations to get all met requirements
         if (savedTender.lead_profile_id) {
           const { data: leadEval } = await supabase
@@ -251,7 +251,7 @@ export const SavedTenderDialog = ({
               {combinedScore}
             </Badge>
           </div>
-          {savedTender.combination_type === 'combination' && savedTender.partnerName && (
+          {(savedTender.combination_type === 'lead_partner' || savedTender.combination_type === 'partner_led') && savedTender.partnerName && (
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium">Partner:</span>
               <Badge variant="secondary" className={`${getPartnerColor(partnerIndex).bg} ${getPartnerColor(partnerIndex).text}`}>
@@ -259,7 +259,7 @@ export const SavedTenderDialog = ({
               </Badge>
             </div>
           )}
-          {savedTender.combination_type === 'combination' ? (
+          {(savedTender.combination_type === 'lead_partner' || savedTender.combination_type === 'partner_led') ? (
             <>
               {leadProfileKeywords.length > 0 && (
                 <div className="mt-2">

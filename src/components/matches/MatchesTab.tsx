@@ -116,7 +116,7 @@ export const MatchesTab = () => {
       const enrichedData = await Promise.all((data || []).map(async (tender: any) => {
         let partnerName = null;
         // Use combination_type and partner_profile_id from saved_tenders directly
-        if (tender.combination_type === 'combination' && tender.partner_profile_id) {
+        if ((tender.combination_type === 'lead_partner' || tender.combination_type === 'partner_led') && tender.partner_profile_id) {
           const { data: partnerProfile } = await supabase
             .from("company_profiles")
             .select("profile_name")
@@ -263,7 +263,7 @@ export const MatchesTab = () => {
                     {saved.tender.client || "N/A"}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {saved.combination_type === 'combination' ? (
+                    {(saved.combination_type === 'lead_partner' || saved.combination_type === 'partner_led') ? (
                       (() => {
                         const partnerIndex = saved.partner_profile_id ? partnerIndexMap.get(saved.partner_profile_id) ?? 0 : 0;
                         const colors = getPartnerColor(partnerIndex);
