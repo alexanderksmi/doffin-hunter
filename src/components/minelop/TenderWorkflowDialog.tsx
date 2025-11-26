@@ -154,24 +154,40 @@ export const TenderWorkflowDialog = ({
     setSendingInvitation(true);
     try {
       // Get partner domain via company_profiles -> partners
-      const { data: partnerProfile } = await supabase
+      const { data: partnerProfile, error: profileError } = await supabase
         .from("company_profiles")
         .select("partner_id, partners(partner_domain)")
         .eq("id", tender.partner_profile_id)
         .single();
 
+      if (profileError) {
+        console.error("Error fetching partner profile:", profileError);
+        throw new Error("Kunne ikke hente partnerinformasjon");
+      }
+
       if (partnerProfile?.partners?.partner_domain) {
         const rawDomain = partnerProfile.partners.partner_domain;
         const partnerDomain = normalizeDomain(rawDomain);
 
+        console.log("Looking for partner organization with domain:", partnerDomain);
+
         // Find partner organization by domain
-        const { data: allOrgs } = await supabase
+        const { data: allOrgs, error: orgsError } = await supabase
           .from("organizations")
           .select("id, domain");
+        
+        if (orgsError) {
+          console.error("Error fetching organizations:", orgsError);
+          throw new Error("Kunne ikke hente organisasjoner");
+        }
+
+        console.log("All organizations:", allOrgs?.map(o => ({ id: o.id, domain: o.domain, normalized: normalizeDomain(o.domain) })));
         
         const partnerOrg = allOrgs?.find(org => 
           normalizeDomain(org.domain) === partnerDomain
         );
+
+        console.log("Found partner organization:", partnerOrg);
 
         if (partnerOrg) {
           // Create shared tender link
