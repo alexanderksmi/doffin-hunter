@@ -166,66 +166,53 @@ export const TenderWorkflowDialog = ({
       }
 
       if (partnerProfile?.partners?.partner_domain) {
-        const rawDomain = partnerProfile.partners.partner_domain;
-        const partnerDomain = normalizeDomain(rawDomain);
+        console.log("Finding partner organization for profile:", tender.partner_profile_id);
 
-        console.log("Looking for partner organization with domain:", partnerDomain);
-
-        // Find partner organization by domain
-        const { data: allOrgs, error: orgsError } = await supabase
-          .from("organizations")
-          .select("id, domain");
-        
-        if (orgsError) {
-          console.error("Error fetching organizations:", orgsError);
-          throw new Error("Kunne ikke hente organisasjoner");
-        }
-
-        console.log("All organizations:", allOrgs?.map(o => ({ id: o.id, domain: o.domain, normalized: normalizeDomain(o.domain) })));
-        
-        const partnerOrg = allOrgs?.find(org => 
-          normalizeDomain(org.domain) === partnerDomain
-        );
-
-        console.log("Found partner organization:", partnerOrg);
-
-        // Create shared tender link - even if partner org doesn't exist yet
-        // The link will be "pending" and will activate when partner registers
-        const targetOrgId = partnerOrg?.id || '00000000-0000-0000-0000-000000000000'; // Placeholder if not found
-        
-        const { error: linkError } = await supabase
-          .from("shared_tender_links")
-          .insert({
-            source_organization_id: organizationId,
-            source_saved_tender_id: tender.id,
-            target_organization_id: targetOrgId,
-            status: "pending",
-            invited_at: new Date().toISOString(),
+        // Use the database function to find partner organization
+        // This function has SECURITY DEFINER so it can search all organizations
+        const { data: partnerOrgId, error: findError } = await supabase
+          .rpc('find_organization_by_partner_domain', {
+            partner_profile_id: tender.partner_profile_id
           });
 
-        if (linkError) throw linkError;
+        if (findError) {
+          console.error("Error finding partner organization:", findError);
+          throw new Error("Kunne ikke finne partnerorganisasjon");
+        }
 
-        // Mark source tender as shared
-        await supabase
-          .from("saved_tenders")
-          .update({ is_shared: true })
-          .eq("id", tender.id);
+        console.log("Found partner organization ID:", partnerOrgId);
 
-        setInvitationStatus("pending");
+        if (partnerOrgId) {
+          // Create shared tender link
+          const { error: linkError } = await supabase
+            .from("shared_tender_links")
+            .insert({
+              source_organization_id: organizationId,
+              source_saved_tender_id: tender.id,
+              target_organization_id: partnerOrgId,
+              status: "pending",
+              invited_at: new Date().toISOString(),
+            });
 
-        if (partnerOrg) {
+          if (linkError) throw linkError;
+
+          // Mark source tender as shared
+          await supabase
+            .from("saved_tenders")
+            .update({ is_shared: true })
+            .eq("id", tender.id);
+
+          setInvitationStatus("pending");
+
           toast({
             title: "Invitasjon sendt",
             description: "Partnerorganisasjonen har mottatt en invitasjon til å samarbeide",
           });
-        } else {
-          toast({
-            title: "Invitasjon opprettet",
-            description: "Invitasjonen vil sendes automatisk når partneren registrerer seg i Anbudspartner",
-          });
-        }
 
-        onUpdate();
+          onUpdate();
+        } else {
+          throw new Error("Partnerorganisasjon ikke funnet i systemet");
+        }
       } else {
         throw new Error("Partnerdomene ikke funnet");
       }
