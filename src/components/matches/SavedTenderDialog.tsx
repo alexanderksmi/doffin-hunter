@@ -54,11 +54,31 @@ export const SavedTenderDialog = ({
   const [partnerProfileKeywords, setPartnerProfileKeywords] = useState<any[]>([]);
   const [partnerIndex, setPartnerIndex] = useState<number>(0);
   const [combinedScore, setCombinedScore] = useState(0);
+  const [partnerProfiles, setPartnerProfiles] = useState<any[]>([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(
+    savedTender.partner_profile_id || null
+  );
 
   useEffect(() => {
     setComments(savedTender.comments || "");
     setRelevanceScore(savedTender.relevance_score || 50);
     setTimeCriticality(savedTender.time_criticality || "middels");
+    setSelectedPartnerId(savedTender.partner_profile_id || null);
+    
+    // Load partner profiles
+    const loadPartners = async () => {
+      if (!organizationId) return;
+      const { data } = await supabase
+        .from('company_profiles')
+        .select('id, profile_name, partner_id')
+        .eq('organization_id', organizationId)
+        .eq('is_own_profile', false)
+        .order('created_at', { ascending: true });
+      
+      setPartnerProfiles(data || []);
+    };
+    
+    loadPartners();
     
     // Load profile keywords using saved_tender's own combination data
     const loadProfileKeywords = async () => {
@@ -178,18 +198,61 @@ export const SavedTenderDialog = ({
   const handleMoveToMineLop = async () => {
     setSaving(true);
     try {
+      // Cache tender data and determine combination type
+      const combinationType = selectedPartnerId ? 'lead_partner' : 'solo';
+      
+      const updateData: any = {
+        status: "pagar",
+        current_stage: "kvalifisering",
+        comments,
+        relevance_score: relevanceScore,
+        time_criticality: timeCriticality,
+        combination_type: combinationType,
+        partner_profile_id: selectedPartnerId,
+        cached_title: savedTender.tender.title,
+        cached_client: savedTender.tender.client,
+        cached_deadline: savedTender.tender.deadline,
+        cached_doffin_url: savedTender.tender.doffin_url,
+      };
+
       const { error } = await supabase
         .from("saved_tenders")
-        .update({
-          status: "pagar",
-          current_stage: "kvalifisering",
-          comments,
-          relevance_score: relevanceScore,
-          time_criticality: timeCriticality,
-        })
+        .update(updateData)
         .eq("id", savedTender.id);
 
       if (error) throw error;
+
+      // If partner selected, create shared tender link
+      if (selectedPartnerId) {
+        // Find partner organization using the helper function
+        const { data: targetOrgId, error: orgError } = await supabase
+          .rpc('find_organization_by_partner_domain', { 
+            partner_profile_id: selectedPartnerId 
+          });
+
+        if (orgError) {
+          console.error("Error finding partner organization:", orgError);
+        } else if (targetOrgId) {
+          // Create shared tender link
+          const { error: shareError } = await supabase
+            .from('shared_tender_links')
+            .insert({
+              source_organization_id: organizationId,
+              source_saved_tender_id: savedTender.id,
+              target_organization_id: targetOrgId,
+              status: 'pending',
+            });
+
+          if (shareError) {
+            console.error("Error creating share link:", shareError);
+          } else {
+            toast({
+              title: "Sendt invitasjon",
+              description: "Partnerorganisasjonen har mottatt en invitasjon til å samarbeide",
+            });
+          }
+        }
+      }
 
       toast({
         title: "Flyttet til Mine Løp",
@@ -306,6 +369,27 @@ export const SavedTenderDialog = ({
         </div>
 
         <div className="space-y-6 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="partner">Partner (valgfritt)</Label>
+            <Select 
+              value={selectedPartnerId || "none"} 
+              onValueChange={(value) => setSelectedPartnerId(value === "none" ? null : value)}
+              disabled={readOnly}
+            >
+              <SelectTrigger id="partner">
+                <SelectValue placeholder="Velg partner" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Ingen partner (solo)</SelectItem>
+                {partnerProfiles.map((partner) => (
+                  <SelectItem key={partner.id} value={partner.id}>
+                    {partner.profile_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="comments">Egne kommentarer</Label>
             <Textarea
