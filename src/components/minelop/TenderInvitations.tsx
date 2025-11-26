@@ -31,7 +31,7 @@ type Invitation = {
     cached_client: string;
     cached_deadline: string;
     cached_doffin_url: string;
-  };
+  } | null;
 };
 
 type TenderInvitationsProps = {
@@ -224,7 +224,7 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
     }
   };
 
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Ingen frist";
     const date = new Date(dateString);
     return date.toLocaleDateString("no-NO", {
@@ -264,8 +264,8 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
               >
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-medium">{invitation.tender.cached_title}</h4>
-                    {invitation.tender.cached_doffin_url && (
+                    <h4 className="font-medium">{invitation.tender?.cached_title || "Anbud (data lastes...)"}</h4>
+                    {invitation.tender?.cached_doffin_url && (
                       <a
                         href={invitation.tender.cached_doffin_url}
                         target="_blank"
@@ -280,9 +280,9 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
                     <span className="font-medium">{invitation.sourceOrg.name}</span> inviterer deg til samarbeid
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>Oppdragsgiver: {invitation.tender.cached_client || "N/A"}</span>
+                    <span>Oppdragsgiver: {invitation.tender?.cached_client || "N/A"}</span>
                     <span>•</span>
-                    <span>Frist: {formatDate(invitation.tender.cached_deadline)}</span>
+                    <span>Frist: {formatDate(invitation.tender?.cached_deadline)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4">
