@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TenderWorkflowDialog } from "./TenderWorkflowDialog";
 import { getPartnerColor } from "@/lib/partnerColors";
 import { CreateTenderDialog } from "./CreateTenderDialog";
+import { TenderInvitations } from "./TenderInvitations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -124,7 +125,7 @@ export const MineLopTab = () => {
 
       if (error) throw error;
 
-      // Enrich with partner names
+      // Enrich with partner names and fallback to cached data
       const enrichedData = await Promise.all((data || []).map(async (tender: any) => {
         let partnerName = null;
         if ((tender.combination_type === 'lead_partner' || tender.combination_type === 'partner_led') && tender.partner_profile_id) {
@@ -135,7 +136,18 @@ export const MineLopTab = () => {
             .single();
           partnerName = partnerProfile?.profile_name;
         }
-        return { ...tender, partnerName };
+
+        // Use cached data as fallback if tender relation is null (for shared tenders)
+        const tenderData = tender.tender || {
+          id: tender.tender_id,
+          title: tender.cached_title,
+          client: tender.cached_client,
+          deadline: tender.cached_deadline,
+          doffin_url: tender.cached_doffin_url,
+          published_date: null,
+        };
+
+        return { ...tender, tender: tenderData, partnerName };
       }));
 
       setMineLopTenders(enrichedData);
@@ -216,6 +228,8 @@ export const MineLopTab = () => {
 
   return (
     <div className="space-y-6">
+      <TenderInvitations onUpdate={loadMineLopTenders} />
+      
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Mine Løp</h2>
