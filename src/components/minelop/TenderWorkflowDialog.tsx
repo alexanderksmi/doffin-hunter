@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useRealtimeSharedTender } from "@/hooks/useRealtimeSharedTender";
 import {
@@ -11,8 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Check } from "lucide-react";
+import { ExternalLink, Check, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { normalizeDomain } from "@/lib/utils";
 import { StageNotes } from "./StageNotes";
 import { TenderContacts } from "./TenderContacts";
 import { TenderOwners } from "./TenderOwners";
@@ -43,11 +45,14 @@ export const TenderWorkflowDialog = ({
   readOnly = false,
 }: TenderWorkflowDialogProps) => {
   const { toast } = useToast();
+  const { organizationId } = useAuth();
   const [currentStage, setCurrentStage] = useState(tender.current_stage);
   const [stageNotes, setStageNotes] = useState<Record<string, string>>(
     tender.stage_notes || {}
   );
   const [saving, setSaving] = useState(false);
+  const [invitationStatus, setInvitationStatus] = useState<string | null>(null);
+  const [sendingInvitation, setSendingInvitation] = useState(false);
 
   // Enable realtime sync for shared tenders
   useRealtimeSharedTender({
@@ -59,6 +64,29 @@ export const TenderWorkflowDialog = ({
     setCurrentStage(tender.current_stage);
     setStageNotes(tender.stage_notes || {});
   }, [tender]);
+
+  // Check invitation status when dialog opens
+  useEffect(() => {
+    const checkInvitationStatus = async () => {
+      if (!tender.partner_profile_id || !organizationId) return;
+
+      const { data, error } = await supabase
+        .from("shared_tender_links")
+        .select("status")
+        .eq("source_saved_tender_id", tender.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        setInvitationStatus(data.status);
+      } else {
+        setInvitationStatus(null);
+      }
+    };
+
+    if (open) {
+      checkInvitationStatus();
+    }
+  }, [open, tender.id, tender.partner_profile_id, organizationId]);
 
   const handleSaveNotes = async () => {
     setSaving(true);
@@ -120,6 +148,77 @@ export const TenderWorkflowDialog = ({
     return stages.findIndex((s) => s.key === currentStage);
   };
 
+  const handleSendInvitation = async () => {
+    if (!tender.partner_profile_id || !organizationId) return;
+
+    setSendingInvitation(true);
+    try {
+      // Get partner domain via company_profiles -> partners
+      const { data: partnerProfile } = await supabase
+        .from("company_profiles")
+        .select("partner_id, partners(partner_domain)")
+        .eq("id", tender.partner_profile_id)
+        .single();
+
+      if (partnerProfile?.partners?.partner_domain) {
+        const rawDomain = partnerProfile.partners.partner_domain;
+        const partnerDomain = normalizeDomain(rawDomain);
+
+        // Find partner organization by domain
+        const { data: allOrgs } = await supabase
+          .from("organizations")
+          .select("id, domain");
+        
+        const partnerOrg = allOrgs?.find(org => 
+          normalizeDomain(org.domain) === partnerDomain
+        );
+
+        if (partnerOrg) {
+          // Create shared tender link
+          const { error: linkError } = await supabase
+            .from("shared_tender_links")
+            .insert({
+              source_organization_id: organizationId,
+              source_saved_tender_id: tender.id,
+              target_organization_id: partnerOrg.id,
+              status: "pending",
+              invited_at: new Date().toISOString(),
+            });
+
+          if (linkError) throw linkError;
+
+          // Mark source tender as shared
+          await supabase
+            .from("saved_tenders")
+            .update({ is_shared: true })
+            .eq("id", tender.id);
+
+          setInvitationStatus("pending");
+
+          toast({
+            title: "Invitasjon sendt",
+            description: "Partnerorganisasjonen har mottatt en invitasjon til å samarbeide",
+          });
+
+          onUpdate();
+        } else {
+          throw new Error("Partnerorganisasjon ikke funnet");
+        }
+      } else {
+        throw new Error("Partnerdomene ikke funnet");
+      }
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke sende invitasjon",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingInvitation(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -149,6 +248,38 @@ export const TenderWorkflowDialog = ({
                 <div className="mt-4 p-3 bg-muted rounded-md">
                   <span className="text-sm font-medium">Kommentarer:</span>
                   <p className="text-sm mt-1">{tender.comments}</p>
+                </div>
+              )}
+              {tender.partner_profile_id && !readOnly && (
+                <div className="mt-4">
+                  {invitationStatus === null ? (
+                    <Button
+                      onClick={handleSendInvitation}
+                      disabled={sendingInvitation}
+                      className="w-full"
+                    >
+                      {sendingInvitation ? (
+                        <>Sender invitasjon...</>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send invitasjon til samarbeid
+                        </>
+                      )}
+                    </Button>
+                  ) : invitationStatus === "pending" ? (
+                    <Badge variant="outline" className="w-full justify-center py-2">
+                      Invitasjon sendt - Venter på svar
+                    </Badge>
+                  ) : invitationStatus === "accepted" ? (
+                    <Badge variant="default" className="w-full justify-center py-2">
+                      Invitasjon akseptert
+                    </Badge>
+                  ) : invitationStatus === "rejected" ? (
+                    <Badge variant="destructive" className="w-full justify-center py-2">
+                      Invitasjon avvist
+                    </Badge>
+                  ) : null}
                 </div>
               )}
             </div>
