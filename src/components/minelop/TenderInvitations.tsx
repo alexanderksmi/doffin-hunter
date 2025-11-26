@@ -246,6 +246,9 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
     return null;
   }
 
+  // Filter out invitations where we cannot load tender details due to access rules
+  const visibleInvitations = invitations.filter((invitation) => invitation.tender);
+
   return (
     <>
       <Card>
@@ -257,7 +260,7 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {invitations.map((invitation) => (
+            {visibleInvitations.map((invitation) => (
               <div
                 key={invitation.id}
                 className="flex items-center justify-between border rounded-lg p-4"
