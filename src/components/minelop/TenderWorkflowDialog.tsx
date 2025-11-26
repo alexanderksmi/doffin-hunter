@@ -182,37 +182,40 @@ export const TenderWorkflowDialog = ({
 
         console.log("Found partner organization ID:", partnerOrgId);
 
+        // Create shared tender link (with or without target org)
+        const { error: linkError } = await supabase
+          .from("shared_tender_links")
+          .insert({
+            source_organization_id: organizationId,
+            source_saved_tender_id: tender.id,
+            target_organization_id: partnerOrgId, // Can be null for pending invitations
+            status: "pending",
+            invited_at: new Date().toISOString(),
+          });
+
+        if (linkError) throw linkError;
+
+        // Mark source tender as shared
+        await supabase
+          .from("saved_tenders")
+          .update({ is_shared: true })
+          .eq("id", tender.id);
+
+        setInvitationStatus("pending");
+
         if (partnerOrgId) {
-          // Create shared tender link
-          const { error: linkError } = await supabase
-            .from("shared_tender_links")
-            .insert({
-              source_organization_id: organizationId,
-              source_saved_tender_id: tender.id,
-              target_organization_id: partnerOrgId,
-              status: "pending",
-              invited_at: new Date().toISOString(),
-            });
-
-          if (linkError) throw linkError;
-
-          // Mark source tender as shared
-          await supabase
-            .from("saved_tenders")
-            .update({ is_shared: true })
-            .eq("id", tender.id);
-
-          setInvitationStatus("pending");
-
           toast({
             title: "Invitasjon sendt",
             description: "Partnerorganisasjonen har mottatt en invitasjon til å samarbeide",
           });
-
-          onUpdate();
         } else {
-          throw new Error("Partnerorganisasjon ikke funnet i systemet");
+          toast({
+            title: "Invitasjon opprettet",
+            description: "Invitasjonen vil sendes automatisk når partneren registrerer seg i Anbudspartner",
+          });
         }
+
+        onUpdate();
       } else {
         throw new Error("Partnerdomene ikke funnet");
       }
