@@ -222,38 +222,6 @@ export const SavedTenderDialog = ({
 
       if (error) throw error;
 
-      // If partner selected, create shared tender link
-      if (selectedPartnerId) {
-        // Find partner organization using the helper function
-        const { data: targetOrgId, error: orgError } = await supabase
-          .rpc('find_organization_by_partner_domain', { 
-            partner_profile_id: selectedPartnerId 
-          });
-
-        if (orgError) {
-          console.error("Error finding partner organization:", orgError);
-        } else if (targetOrgId) {
-          // Create shared tender link
-          const { error: shareError } = await supabase
-            .from('shared_tender_links')
-            .insert({
-              source_organization_id: organizationId,
-              source_saved_tender_id: savedTender.id,
-              target_organization_id: targetOrgId,
-              status: 'pending',
-            });
-
-          if (shareError) {
-            console.error("Error creating share link:", shareError);
-          } else {
-            toast({
-              title: "Sendt invitasjon",
-              description: "Partnerorganisasjonen har mottatt en invitasjon til å samarbeide",
-            });
-          }
-        }
-      }
-
       toast({
         title: "Flyttet til Mine Løp",
         description: "Anbudet er nå i Mine Løp",
