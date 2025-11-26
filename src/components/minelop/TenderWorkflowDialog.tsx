@@ -196,6 +196,13 @@ export const TenderWorkflowDialog = ({
             cached_tender_client: tender.cached_client || tender.tender?.client,
             cached_tender_deadline: tender.cached_deadline || tender.tender?.deadline,
             cached_tender_doffin_url: tender.cached_doffin_url || tender.tender?.doffin_url,
+            cached_tender_id: tender.tender_id,
+            cached_evaluation_id: tender.evaluation_id,
+            cached_current_stage: tender.current_stage,
+            cached_combination_type: tender.combination_type,
+            cached_lead_profile_id: tender.lead_profile_id,
+            cached_partner_profile_id: tender.partner_profile_id,
+            cached_stage_notes: tender.stage_notes || {},
           });
 
         if (linkError) throw linkError;

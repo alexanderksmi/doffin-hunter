@@ -27,9 +27,16 @@ type Invitation = {
   cached_tender_client: string | null;
   cached_tender_deadline: string | null;
   cached_tender_doffin_url: string | null;
+  cached_tender_id: string | null;
+  cached_evaluation_id: string | null;
+  cached_current_stage: string | null;
+  cached_combination_type: string | null;
+  cached_lead_profile_id: string | null;
+  cached_partner_profile_id: string | null;
+  cached_stage_notes: any;
   sourceOrg: {
     name: string;
-  };
+  } | null;
 };
 
 type TenderInvitationsProps = {
@@ -59,6 +66,13 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
           cached_tender_client,
           cached_tender_deadline,
           cached_tender_doffin_url,
+          cached_tender_id,
+          cached_evaluation_id,
+          cached_current_stage,
+          cached_combination_type,
+          cached_lead_profile_id,
+          cached_partner_profile_id,
+          cached_stage_notes,
           sourceOrg:organizations!shared_tender_links_source_organization_id_fkey (
             name
           )
@@ -89,55 +103,52 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
   const handleAccept = async (invitation: Invitation) => {
     setProcessingId(invitation.id);
     try {
-      // Get the source saved tender details
-      const { data: sourceTender, error: sourceError } = await supabase
-        .from("saved_tenders")
-        .select("*")
-        .eq("id", invitation.source_saved_tender_id)
-        .single();
+      // Validate that we have all required cached data
+      if (!invitation.cached_tender_id || !invitation.cached_evaluation_id) {
+        throw new Error("Mangler nødvendig data fra invitasjonen");
+      }
 
-      if (sourceError) throw sourceError;
-
+      // Use cached data from invitation instead of reading source_saved_tender
       // Invert combination_type: lead_partner -> partner_led
       const invertedCombinationType = 
-        sourceTender.combination_type === 'lead_partner' ? 'partner_led' : 
-        sourceTender.combination_type === 'partner_led' ? 'lead_partner' : 
-        sourceTender.combination_type;
+        invitation.cached_combination_type === 'lead_partner' ? 'partner_led' : 
+        invitation.cached_combination_type === 'partner_led' ? 'lead_partner' : 
+        invitation.cached_combination_type || 'solo';
 
       // Find the correct evaluation_id for the inverted perspective
       // The partner becomes lead and lead becomes partner, so look for evaluation with swapped profiles
       const { data: evaluation, error: evalError } = await supabase
         .from("tender_evaluations")
         .select("id")
-        .eq("tender_id", sourceTender.tender_id)
+        .eq("tender_id", invitation.cached_tender_id)
         .eq("organization_id", organizationId)
-        .eq("lead_profile_id", sourceTender.partner_profile_id) // Swapped
+        .eq("lead_profile_id", invitation.cached_partner_profile_id) // Swapped
         .maybeSingle();
 
       if (evalError) throw evalError;
 
-      // Use found evaluation or fall back to source evaluation
-      const evaluationId = evaluation?.id || sourceTender.evaluation_id;
+      // Use found evaluation or fall back to cached evaluation
+      const evaluationId = evaluation?.id || invitation.cached_evaluation_id;
 
-      const { data: newTender, error: insertError } = await supabase
+      const { data: newTender, error: insertError} = await supabase
         .from("saved_tenders")
-        .insert({
-          tender_id: sourceTender.tender_id,
+        .insert([{
+          tender_id: invitation.cached_tender_id,
           evaluation_id: evaluationId,
           organization_id: organizationId,
           saved_by: (await supabase.auth.getUser()).data.user?.id,
           status: "pagar",
-          current_stage: sourceTender.current_stage,
+          current_stage: (invitation.cached_current_stage as any) || "kvalifisering",
           combination_type: invertedCombinationType,
-          lead_profile_id: sourceTender.partner_profile_id, // Swap
-          partner_profile_id: sourceTender.lead_profile_id, // Swap
-          cached_title: sourceTender.cached_title,
-          cached_client: sourceTender.cached_client,
-          cached_deadline: sourceTender.cached_deadline,
-          cached_doffin_url: sourceTender.cached_doffin_url,
+          lead_profile_id: invitation.cached_partner_profile_id, // Swap
+          partner_profile_id: invitation.cached_lead_profile_id, // Swap
+          cached_title: invitation.cached_tender_title,
+          cached_client: invitation.cached_tender_client,
+          cached_deadline: invitation.cached_tender_deadline,
+          cached_doffin_url: invitation.cached_tender_doffin_url,
           is_shared: true,
-          stage_notes: sourceTender.stage_notes,
-        })
+          stage_notes: invitation.cached_stage_notes || {},
+        }])
         .select()
         .single();
 
