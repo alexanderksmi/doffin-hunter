@@ -191,6 +191,11 @@ export const TenderWorkflowDialog = ({
             target_organization_id: partnerOrgId, // Can be null for pending invitations
             status: "pending",
             invited_at: new Date().toISOString(),
+            // Cache tender info so it's readable without RLS access to source saved_tender
+            cached_tender_title: tender.cached_title || tender.tender?.title,
+            cached_tender_client: tender.cached_client || tender.tender?.client,
+            cached_tender_deadline: tender.cached_deadline || tender.tender?.deadline,
+            cached_tender_doffin_url: tender.cached_doffin_url || tender.tender?.doffin_url,
           });
 
         if (linkError) throw linkError;
