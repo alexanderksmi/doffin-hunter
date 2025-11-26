@@ -71,6 +71,7 @@ export const TenderWorkflowDialog = ({
         description: "Endringene er lagret",
       });
       onUpdate();
+      onOpenChange(false);
     } catch (error) {
       console.error("Error saving:", error);
       toast({

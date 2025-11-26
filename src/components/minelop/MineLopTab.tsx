@@ -127,7 +127,7 @@ export const MineLopTab = () => {
       // Enrich with partner names
       const enrichedData = await Promise.all((data || []).map(async (tender: any) => {
         let partnerName = null;
-        if (tender.combination_type === 'combination' && tender.partner_profile_id) {
+        if ((tender.combination_type === 'lead_partner' || tender.combination_type === 'partner_led') && tender.partner_profile_id) {
           const { data: partnerProfile } = await supabase
             .from("company_profiles")
             .select("profile_name")
@@ -281,7 +281,7 @@ export const MineLopTab = () => {
                     {tender.tender.client || "N/A"}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {tender.combination_type === 'combination' ? (
+                    {(tender.combination_type === 'lead_partner' || tender.combination_type === 'partner_led') ? (
                       (() => {
                         const partnerIndex = tender.partner_profile_id ? partnerIndexMap.get(tender.partner_profile_id) ?? 0 : 0;
                         const colors = getPartnerColor(partnerIndex);
