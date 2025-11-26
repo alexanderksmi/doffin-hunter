@@ -135,7 +135,7 @@ const Onboarding = () => {
             "create_org_for_user",
             {
               org_name: companyName,
-              org_domain: domain,
+              org_domain: normalizeDomain(domain), // Normalize domain before sending
             }
           );
 
