@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRealtimeSharedTender } from "@/hooks/useRealtimeSharedTender";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,12 @@ export const TenderWorkflowDialog = ({
     tender.stage_notes || {}
   );
   const [saving, setSaving] = useState(false);
+
+  // Enable realtime sync for shared tenders
+  useRealtimeSharedTender({
+    savedTenderId: tender.id,
+    onUpdate: onUpdate,
+  });
 
   useEffect(() => {
     setCurrentStage(tender.current_stage);
