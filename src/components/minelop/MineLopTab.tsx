@@ -166,7 +166,24 @@ export const MineLopTab = () => {
       // Enrich with partner names and fallback to cached data
       const enrichedData = await Promise.all((data || []).map(async (tender: any) => {
         let partnerName = null;
-        if ((tender.combination_type === 'lead_partner' || tender.combination_type === 'partner_led') && tender.partner_profile_id) {
+        
+        // For shared tenders, get partner name from shared_tender_links
+        if (tender.is_shared) {
+          const { data: linkData } = await supabase
+            .from('shared_tender_links')
+            .select('source_saved_tender_id, target_saved_tender_id, cached_source_org_name, cached_target_org_name')
+            .or(`source_saved_tender_id.eq.${tender.id},target_saved_tender_id.eq.${tender.id}`)
+            .eq('status', 'accepted')
+            .single();
+          
+          if (linkData) {
+            // If we are the target, show source org name as partner
+            // If we are the source, show target org name as partner
+            partnerName = linkData.target_saved_tender_id === tender.id 
+              ? linkData.cached_source_org_name 
+              : linkData.cached_target_org_name;
+          }
+        } else if ((tender.combination_type === 'lead_partner' || tender.combination_type === 'partner_led') && tender.partner_profile_id) {
           const { data: partnerProfile } = await supabase
             .from("company_profiles")
             .select("profile_name")
