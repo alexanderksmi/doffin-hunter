@@ -128,7 +128,7 @@ export const CreateTenderDialog = ({ open, onOpenChange, onSuccess }: CreateTend
         partnerProfileId = formData.partnerId;
       }
 
-      // Create evaluation
+      // Create evaluation (set is_active = false so it never appears in Radar)
       const { data: evalData, error: evalError } = await supabase
         .from("tender_evaluations")
         .insert({
@@ -140,6 +140,7 @@ export const CreateTenderDialog = ({ open, onOpenChange, onSuccess }: CreateTend
           all_minimum_requirements_met: true,
           total_score: 0,
           is_manual: true,
+          is_active: false,
         })
         .select()
         .single();
