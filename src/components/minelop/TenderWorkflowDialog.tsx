@@ -91,6 +91,7 @@ export const TenderWorkflowDialog = ({
   const handleSaveNotes = async () => {
     setSaving(true);
     try {
+      // Update this saved_tender
       const { error } = await supabase
         .from("saved_tenders")
         .update({
@@ -100,6 +101,31 @@ export const TenderWorkflowDialog = ({
         .eq("id", tender.id);
 
       if (error) throw error;
+
+      // Also update the linked saved_tender if this is a shared tender
+      const { data: sharedLink } = await supabase
+        .from("shared_tender_links")
+        .select("source_saved_tender_id, target_saved_tender_id, status")
+        .or(`source_saved_tender_id.eq.${tender.id},target_saved_tender_id.eq.${tender.id}`)
+        .eq("status", "accepted")
+        .maybeSingle();
+
+      if (sharedLink) {
+        const linkedTenderId = 
+          sharedLink.source_saved_tender_id === tender.id
+            ? sharedLink.target_saved_tender_id
+            : sharedLink.source_saved_tender_id;
+
+        if (linkedTenderId) {
+          await supabase
+            .from("saved_tenders")
+            .update({
+              current_stage: currentStage,
+              stage_notes: stageNotes,
+            })
+            .eq("id", linkedTenderId);
+        }
+      }
 
       toast({
         title: "Lagret",
@@ -274,7 +300,7 @@ export const TenderWorkflowDialog = ({
                   <p className="text-sm mt-1">{tender.comments}</p>
                 </div>
               )}
-              {tender.partner_profile_id && !readOnly && (
+              {tender.partner_profile_id && !readOnly && invitationStatus !== "accepted" && (
                 <div className="mt-4">
                   {invitationStatus === null ? (
                     <Button
@@ -294,10 +320,6 @@ export const TenderWorkflowDialog = ({
                   ) : invitationStatus === "pending" ? (
                     <Badge variant="outline" className="w-full justify-center py-2">
                       Invitasjon sendt - Venter på svar
-                    </Badge>
-                  ) : invitationStatus === "accepted" ? (
-                    <Badge variant="default" className="w-full justify-center py-2">
-                      Invitasjon akseptert
                     </Badge>
                   ) : invitationStatus === "rejected" ? (
                     <Badge variant="destructive" className="w-full justify-center py-2">
