@@ -52,6 +52,21 @@ export const TenderContacts = ({ savedTenderId, readOnly = false }: TenderContac
     }
   };
 
+  const getLinkedTenderId = async (savedTenderId: string): Promise<string | null> => {
+    const { data, error } = await supabase
+      .from("shared_tender_links")
+      .select("source_saved_tender_id, target_saved_tender_id")
+      .or(`source_saved_tender_id.eq.${savedTenderId},target_saved_tender_id.eq.${savedTenderId}`)
+      .eq("status", "accepted")
+      .maybeSingle();
+
+    if (error || !data) return null;
+    
+    return data.source_saved_tender_id === savedTenderId
+      ? data.target_saved_tender_id
+      : data.source_saved_tender_id;
+  };
+
   const handleAddContact = async () => {
     if (!newContact.name.trim()) {
       toast({
@@ -63,15 +78,25 @@ export const TenderContacts = ({ savedTenderId, readOnly = false }: TenderContac
     }
 
     try {
-      const { error } = await supabase.from("tender_contacts").insert({
+      const contactData = {
         saved_tender_id: savedTenderId,
         name: newContact.name,
         email: newContact.email || null,
         phone: newContact.phone || null,
         role: newContact.role || null,
-      });
+      };
 
+      const { error } = await supabase.from("tender_contacts").insert(contactData);
       if (error) throw error;
+
+      // Sync to linked tender
+      const linkedTenderId = await getLinkedTenderId(savedTenderId);
+      if (linkedTenderId) {
+        await supabase.from("tender_contacts").insert({
+          ...contactData,
+          saved_tender_id: linkedTenderId,
+        });
+      }
 
       setNewContact({ name: "", email: "", phone: "", role: "" });
       loadContacts();
@@ -88,12 +113,35 @@ export const TenderContacts = ({ savedTenderId, readOnly = false }: TenderContac
 
   const handleDeleteContact = async (id: string) => {
     try {
+      // Get contact details before deleting
+      const { data: contact } = await supabase
+        .from("tender_contacts")
+        .select("name, email, phone")
+        .eq("id", id)
+        .single();
+
       const { error } = await supabase
         .from("tender_contacts")
         .delete()
         .eq("id", id);
 
       if (error) throw error;
+
+      // Sync deletion to linked tender
+      if (contact) {
+        const linkedTenderId = await getLinkedTenderId(savedTenderId);
+        if (linkedTenderId) {
+          // Delete matching contact in linked tender
+          await supabase
+            .from("tender_contacts")
+            .delete()
+            .eq("saved_tender_id", linkedTenderId)
+            .eq("name", contact.name)
+            .eq("email", contact.email)
+            .eq("phone", contact.phone);
+        }
+      }
+
       loadContacts();
       toast({ title: "Kontaktperson slettet" });
     } catch (error) {

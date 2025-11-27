@@ -99,6 +99,21 @@ export const TenderOwners = ({ savedTenderId, readOnly = false }: TenderOwnersPr
     }
   };
 
+  const getLinkedTenderId = async (savedTenderId: string): Promise<string | null> => {
+    const { data, error } = await supabase
+      .from("shared_tender_links")
+      .select("source_saved_tender_id, target_saved_tender_id")
+      .or(`source_saved_tender_id.eq.${savedTenderId},target_saved_tender_id.eq.${savedTenderId}`)
+      .eq("status", "accepted")
+      .maybeSingle();
+
+    if (error || !data) return null;
+    
+    return data.source_saved_tender_id === savedTenderId
+      ? data.target_saved_tender_id
+      : data.source_saved_tender_id;
+  };
+
   const handleAddOwner = async () => {
     if (!selectedMember) {
       toast({
@@ -113,14 +128,24 @@ export const TenderOwners = ({ savedTenderId, readOnly = false }: TenderOwnersPr
     if (!member) return;
 
     try {
-      const { error } = await supabase.from("tender_owners").insert({
+      const ownerData = {
         saved_tender_id: savedTenderId,
         name: member.email,
         email: member.email,
         role: ownerRole || null,
-      });
+      };
 
+      const { error } = await supabase.from("tender_owners").insert(ownerData);
       if (error) throw error;
+
+      // Sync to linked tender
+      const linkedTenderId = await getLinkedTenderId(savedTenderId);
+      if (linkedTenderId) {
+        await supabase.from("tender_owners").insert({
+          ...ownerData,
+          saved_tender_id: linkedTenderId,
+        });
+      }
 
       setSelectedMember("");
       setOwnerRole("");
@@ -138,8 +163,28 @@ export const TenderOwners = ({ savedTenderId, readOnly = false }: TenderOwnersPr
 
   const handleDeleteOwner = async (id: string) => {
     try {
+      // Get owner email before deleting
+      const { data: owner } = await supabase
+        .from("tender_owners")
+        .select("email")
+        .eq("id", id)
+        .single();
+
       const { error } = await supabase.from("tender_owners").delete().eq("id", id);
       if (error) throw error;
+
+      // Sync deletion to linked tender
+      if (owner?.email) {
+        const linkedTenderId = await getLinkedTenderId(savedTenderId);
+        if (linkedTenderId) {
+          await supabase
+            .from("tender_owners")
+            .delete()
+            .eq("saved_tender_id", linkedTenderId)
+            .eq("email", owner.email);
+        }
+      }
+
       loadOwnersAndTasks();
       toast({ title: "Anbudseier slettet" });
     } catch (error) {
@@ -157,6 +202,13 @@ export const TenderOwners = ({ savedTenderId, readOnly = false }: TenderOwnersPr
     if (!title) return;
 
     try {
+      // Get owner email to find corresponding owner in linked tender
+      const { data: owner } = await supabase
+        .from("tender_owners")
+        .select("email")
+        .eq("id", ownerId)
+        .single();
+
       const { error } = await supabase.from("tender_tasks").insert({
         saved_tender_id: savedTenderId,
         owner_id: ownerId,
@@ -164,6 +216,28 @@ export const TenderOwners = ({ savedTenderId, readOnly = false }: TenderOwnersPr
       });
 
       if (error) throw error;
+
+      // Sync to linked tender
+      if (owner?.email) {
+        const linkedTenderId = await getLinkedTenderId(savedTenderId);
+        if (linkedTenderId) {
+          // Find corresponding owner in linked tender
+          const { data: linkedOwner } = await supabase
+            .from("tender_owners")
+            .select("id")
+            .eq("saved_tender_id", linkedTenderId)
+            .eq("email", owner.email)
+            .maybeSingle();
+
+          if (linkedOwner) {
+            await supabase.from("tender_tasks").insert({
+              saved_tender_id: linkedTenderId,
+              owner_id: linkedOwner.id,
+              title,
+            });
+          }
+        }
+      }
 
       setNewTask((prev) => ({ ...prev, [ownerId]: "" }));
       loadOwnersAndTasks();
@@ -180,12 +254,44 @@ export const TenderOwners = ({ savedTenderId, readOnly = false }: TenderOwnersPr
 
   const handleToggleTask = async (taskId: string, completed: boolean) => {
     try {
+      // Get task details before updating
+      const { data: task } = await supabase
+        .from("tender_tasks")
+        .select("title, owner_id, tender_owners(email)")
+        .eq("id", taskId)
+        .single();
+
       const { error } = await supabase
         .from("tender_tasks")
         .update({ completed: !completed })
         .eq("id", taskId);
 
       if (error) throw error;
+
+      // Sync to linked tender
+      if (task?.tender_owners?.email) {
+        const linkedTenderId = await getLinkedTenderId(savedTenderId);
+        if (linkedTenderId) {
+          // Find corresponding owner in linked tender
+          const { data: linkedOwner } = await supabase
+            .from("tender_owners")
+            .select("id")
+            .eq("saved_tender_id", linkedTenderId)
+            .eq("email", task.tender_owners.email)
+            .maybeSingle();
+
+          if (linkedOwner) {
+            // Find and update the corresponding task
+            await supabase
+              .from("tender_tasks")
+              .update({ completed: !completed })
+              .eq("saved_tender_id", linkedTenderId)
+              .eq("owner_id", linkedOwner.id)
+              .eq("title", task.title);
+          }
+        }
+      }
+
       loadOwnersAndTasks();
     } catch (error) {
       console.error("Error toggling task:", error);
@@ -199,8 +305,40 @@ export const TenderOwners = ({ savedTenderId, readOnly = false }: TenderOwnersPr
 
   const handleDeleteTask = async (taskId: string) => {
     try {
+      // Get task details before deleting
+      const { data: task } = await supabase
+        .from("tender_tasks")
+        .select("title, owner_id, tender_owners(email)")
+        .eq("id", taskId)
+        .single();
+
       const { error } = await supabase.from("tender_tasks").delete().eq("id", taskId);
       if (error) throw error;
+
+      // Sync deletion to linked tender
+      if (task?.tender_owners?.email) {
+        const linkedTenderId = await getLinkedTenderId(savedTenderId);
+        if (linkedTenderId) {
+          // Find corresponding owner in linked tender
+          const { data: linkedOwner } = await supabase
+            .from("tender_owners")
+            .select("id")
+            .eq("saved_tender_id", linkedTenderId)
+            .eq("email", task.tender_owners.email)
+            .maybeSingle();
+
+          if (linkedOwner) {
+            // Delete the corresponding task
+            await supabase
+              .from("tender_tasks")
+              .delete()
+              .eq("saved_tender_id", linkedTenderId)
+              .eq("owner_id", linkedOwner.id)
+              .eq("title", task.title);
+          }
+        }
+      }
+
       loadOwnersAndTasks();
       toast({ title: "Oppgave slettet" });
     } catch (error) {
