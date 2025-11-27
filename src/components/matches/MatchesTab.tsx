@@ -154,12 +154,30 @@ export const MatchesTab = () => {
     if (!tenderToDelete) return;
     
     try {
-      const { error } = await supabase
+      // First check if this is a manually created tender
+      const { data: tenderData } = await supabase
+        .from("tenders")
+        .select("doffin_id")
+        .eq("id", tenderToDelete.tender_id)
+        .single();
+
+      // Delete the saved_tender first
+      const { error: savedError } = await supabase
         .from("saved_tenders")
         .delete()
         .eq("id", tenderToDelete.id);
 
-      if (error) throw error;
+      if (savedError) throw savedError;
+
+      // If it's a manual tender (doffin_id starts with "manual-"), delete the tender itself
+      if (tenderData?.doffin_id?.startsWith("manual-")) {
+        const { error: tenderError } = await supabase
+          .from("tenders")
+          .delete()
+          .eq("id", tenderToDelete.tender_id);
+
+        if (tenderError) throw tenderError;
+      }
 
       toast({
         title: "Slettet",
