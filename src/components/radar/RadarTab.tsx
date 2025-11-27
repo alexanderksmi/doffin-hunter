@@ -298,6 +298,7 @@ export const RadarTab = () => {
         `)
         .eq('organization_id', organizationId)
         .eq('is_active', true)
+        .eq('is_manual', false)
         .order('total_score', { ascending: false });
 
       if (error) {
@@ -329,7 +330,8 @@ export const RadarTab = () => {
             `)
             .eq('organization_id', organizationId)
             .eq('lead_profile_id', combo.ownProfileId)
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('is_manual', false);
 
           const { data: partnerEvals } = await supabase
             .from('tender_evaluations')
@@ -348,7 +350,8 @@ export const RadarTab = () => {
             `)
             .eq('organization_id', organizationId)
             .eq('lead_profile_id', combo.partnerProfileId)
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('is_manual', false);
 
           // Find tenders that match BOTH profiles
           const ownTenderIds = new Set((ownEvals || []).map((e: any) => e.tender_id));
@@ -458,7 +461,8 @@ export const RadarTab = () => {
             `)
             .eq('organization_id', organizationId)
             .eq('lead_profile_id', combo.ownProfileId)
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('is_manual', false);
 
           const { data: partnerEvals } = await supabase
             .from('tender_evaluations')
@@ -477,7 +481,8 @@ export const RadarTab = () => {
             `)
             .eq('organization_id', organizationId)
             .eq('lead_profile_id', combo.partnerProfileId)
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('is_manual', false);
 
           // Find tenders that match BOTH profiles
           const ownTenderIds = new Set((ownEvals || []).map((e: any) => e.tender_id));
@@ -569,6 +574,7 @@ export const RadarTab = () => {
         .eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.profileId)
         .eq('is_active', true)
+        .eq('is_manual', false)
         .order('total_score', { ascending: false });
 
       if (error) {
@@ -608,9 +614,10 @@ export const RadarTab = () => {
           ),
           lead_profile:lead_profile_id (profile_name)
         `)
-        .eq('organization_id', organizationId)
+.eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.ownProfileId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('is_manual', false);
 
       const { data: partnerEvals, error: partnerError } = await supabase
         .from('tender_evaluations')
@@ -627,9 +634,10 @@ export const RadarTab = () => {
           ),
           lead_profile:lead_profile_id (profile_name)
         `)
-        .eq('organization_id', organizationId)
+.eq('organization_id', organizationId)
         .eq('lead_profile_id', combo.partnerProfileId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('is_manual', false);
 
       if (ownError || partnerError) {
         console.error('Error fetching combination evaluations');
