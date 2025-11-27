@@ -483,6 +483,7 @@ export type Database = {
           cached_partner_profile_id: string | null
           cached_source_org_name: string | null
           cached_stage_notes: Json | null
+          cached_target_org_name: string | null
           cached_tender_client: string | null
           cached_tender_deadline: string | null
           cached_tender_doffin_url: string | null
@@ -508,6 +509,7 @@ export type Database = {
           cached_partner_profile_id?: string | null
           cached_source_org_name?: string | null
           cached_stage_notes?: Json | null
+          cached_target_org_name?: string | null
           cached_tender_client?: string | null
           cached_tender_deadline?: string | null
           cached_tender_doffin_url?: string | null
@@ -533,6 +535,7 @@ export type Database = {
           cached_partner_profile_id?: string | null
           cached_source_org_name?: string | null
           cached_stage_notes?: Json | null
+          cached_target_org_name?: string | null
           cached_tender_client?: string | null
           cached_tender_deadline?: string | null
           cached_tender_doffin_url?: string | null

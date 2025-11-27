@@ -166,6 +166,21 @@ export const TenderInvitations = ({ onUpdate }: TenderInvitationsProps) => {
 
       if (updateError) throw updateError;
 
+      // Get current organization name to cache in shared_tender_links
+      const { data: orgData } = await supabase
+        .from("organizations")
+        .select("name")
+        .eq("id", organizationId)
+        .single();
+
+      // Update link with target org name
+      await supabase
+        .from("shared_tender_links")
+        .update({ 
+          cached_target_org_name: orgData?.name || 'Ukjent organisasjon'
+        })
+        .eq("id", invitation.id);
+
       // Mark source tender as shared
       await supabase
         .from("saved_tenders")
